@@ -1,0 +1,160 @@
+# watchPot control-plane stack
+#
+# Quick start (SQLite + HTTPS — default):
+#   cp backend/.env.example backend/.env
+#   docker compose up -d --build
+#   docker compose logs api | grep -A4 watchPot   # one-time wpadmin password
+#
+# Open the UI: https://localhost  (accept the browser warning, or trust the local CA below)
+# API / OpenAPI: https://localhost/docs
+#
+# Trust the self-signed CA (optional — removes browser warnings):
+#   File written on first start: deploy/tls/out/watchpot-local-ca.crt
+#   Linux:  sudo cp deploy/tls/out/watchpot-local-ca.crt /usr/local/share/ca-certificates/ && sudo update-ca-certificates
+#   macOS:  sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain deploy/tls/out/watchpot-local-ca.crt
+#
+# The agent starts automatically: the API registers a local-dev pot and writes
+# credentials to agent/.env; the agent container waits for that file then connects.
+# Disable with WATCHPOT_AUTO_LOCAL_AGENT=false (and remove or stop the agent service).
+#
+# Fresh database (wipes SQLite + TLS certs):
+#   docker compose down -v
+#
+# Plain HTTP debugging: temporarily add ports to api/web in docker-compose.override.yml
+#
+# ── Database options ──────────────────────────────────────────────────────────
+# Set DATABASE_URL in backend/.env and/or override on the `api` service below.
+#
+# 1) SQLite (default)
+#      DATABASE_URL=sqlite+aiosqlite:////app/data/watchpot.db
+#
+# 2) PostgreSQL (optional): docker compose --profile postgres up -d --build
+#      DATABASE_URL=postgresql+asyncpg://watchpot:watchpot@postgres:5432/watchpot
+
+services:
+  proxy:
+    build:
+      context: ./deploy/tls
+      dockerfile: Dockerfile
+    image: watchpot-proxy:local
+    environment:
+      WATCHPOT_PUBLIC_HOST: ${WATCHPOT_PUBLIC_HOST:-}
+      WATCHPOT_TLS_EXTRA_IPS: ${WATCHPOT_TLS_EXTRA_IPS:-}
+    ports:
+      - "${WATCHPOT_HTTPS_PORT:-443}:443"
+      - "${WATCHPOT_HTTP_PORT:-80}:80"
+    volumes:
+      - watchpot_tls:/etc/nginx/tls
+      - ./deploy/tls/out:/export
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_started
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: watchpot-api:local
+    env_file:
+      - ./backend/.env
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-sqlite+aiosqlite:////app/data/watchpot.db}
+      WATCHPOT_API_ROLE: ${WATCHPOT_API_ROLE:-control}
+      WATCHPOT_STACK_MODE: ${WATCHPOT_STACK_MODE:-full}
+      WATCHPOT_AUTO_LOCAL_AGENT: ${WATCHPOT_AUTO_LOCAL_AGENT:-true}
+      WATCHPOT_AGENT_DIR: /agent
+      WATCHPOT_LOCAL_AGENT_API_URL: http://api:6040/api
+      WATCHPOT_LOCAL_AGENT_WORK_DIR: /var/lib/watchpot
+      WATCHPOT_CORS_ORIGINS: ${WATCHPOT_CORS_ORIGINS:-https://localhost,https://127.0.0.1}
+      WATCHPOT_ALLOW_LOOPBACK_CORS: ${WATCHPOT_ALLOW_LOOPBACK_CORS:-true}
+      EXPOSE_OPENAPI: ${EXPOSE_OPENAPI:-true}
+      WATCHPOT_LOG_BOOTSTRAP_PASSWORD: ${WATCHPOT_LOG_BOOTSTRAP_PASSWORD:-true}
+    volumes:
+      - ./agent:/agent
+      - watchpot_sqlite:/app/data
+    expose:
+      - "6040"
+    depends_on:
+      postgres:
+        condition: service_healthy
+        required: false
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:6040/health')\"",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://localhost/api}
+    image: watchpot-web:local
+    environment:
+      PORT: "3020"
+      HOSTNAME: "0.0.0.0"
+    expose:
+      - "3020"
+    depends_on:
+      api:
+        condition: service_healthy
+
+  setup-wizard:
+    image: watchpot-api:local
+    profiles: [setup]
+    volumes:
+      - ./backend:/app
+      - /var/run/docker.sock:/var/run/docker.sock
+    stdin_open: true
+    tty: true
+    entrypoint: ["/usr/local/bin/watchpot-setup-entrypoint.sh"]
+    command: ["python", "-m", "app.setup_wizard"]
+
+  agent:
+    build:
+      context: ./agent
+      dockerfile: Dockerfile
+    image: watchpot-agent:local
+    environment:
+      WATCHPOT_API_URL: http://api:6040/api
+      WATCHPOT_AGENT_ENV_FILE: /agent/.env
+      WATCHPOT_WAIT_FOR_REGISTRATION: "1"
+      WATCHPOT_WORK_DIR: /var/lib/watchpot
+    volumes:
+      - ./agent:/agent:ro
+      - ./agent/watchpot_agent:/app/watchpot_agent:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - agent_work:/var/lib/watchpot
+    depends_on:
+      api:
+        condition: service_healthy
+
+  postgres:
+    profiles: [postgres]
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: watchpot
+      POSTGRES_PASSWORD: watchpot
+      POSTGRES_DB: watchpot
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U watchpot -d watchpot"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  watchpot_tls:
+  watchpot_sqlite:
+  agent_work:
+  pgdata:

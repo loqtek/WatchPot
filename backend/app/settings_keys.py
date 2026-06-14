@@ -1,0 +1,16 @@
+"""Keys for the `app_settings` table (values are strings; JSON for structured)."""
+
+JWT_SECRET = "jwt_secret"
+JWT_ALGORITHM = "jwt_algorithm"
+ACCESS_TOKEN_EXPIRE_MINUTES = "access_token_expire_minutes"
+CORS_ORIGINS = "cors_origins"
+EXTERNAL_LOG_PATHS = "external_log_paths"
+DEPLOYMENT_STACK_MODE = "deployment_stack_mode"
+ALLOW_PUBLIC_REGISTRATION = "allow_public_registration"
+BOOTSTRAP_VERSION = "bootstrap_version"
+HEARTBEAT_STALE_MINUTES = "heartbeat_stale_minutes"
+SIEM_INTEGRATIONS = "siem_integrations"
+ENRICHMENT_CONFIG = "enrichment_config"
+
+DEFAULT_ADMIN_EMAIL = "wpadmin@watchpot.local"
+DEFAULT_ADMIN_USERNAME_HINT = "wpadmin"

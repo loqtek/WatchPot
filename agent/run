@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$ROOT/.." && pwd)"
+cd "$ROOT"
+
+ENV_FILE="$ROOT/.env"
+ENV_EXAMPLE="$ROOT/env.example"
+
+if [[ ! -f "$ENV_FILE" ]]; then
+  if [[ -f "$ENV_EXAMPLE" ]]; then
+    echo "Creating $ENV_FILE from env.example …"
+    cp "$ENV_EXAMPLE" "$ENV_FILE"
+  else
+    echo "Missing $ENV_FILE and env.example — set WATCHPOT_API_URL, WATCHPOT_POT_ID, WATCHPOT_AGENT_TOKEN." >&2
+    exit 1
+  fi
+fi
+
+# Export keys from a dotenv file only when not already set in the shell.
+load_env_file() {
+  local file="$1"
+  [[ -f "$file" ]] || return 0
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%$'\r'}"
+    [[ "$line" =~ ^[[:space:]]*# ]] && continue
+    [[ "$line" =~ ^[[:space:]]*$ ]] && continue
+    [[ "$line" != *=* ]] && continue
+    local key="${line%%=*}"
+    key="${key#"${key%%[![:space:]]*}"}"
+    key="${key%"${key##*[![:space:]]}"}"
+    [[ -z "$key" ]] && continue
+    if [[ -v "$key" ]]; then
+      continue
+    fi
+    local val="${line#*=}"
+    val="${val#"${val%%[![:space:]]*}"}"
+    [[ -z "$val" ]] && continue
+    if [[ "$val" == \"*\" && "$val" == *\" ]]; then
+      val="${val:1:${#val}-2}"
+    elif [[ "$val" == \'*\' && "$val" == *\' ]]; then
+      val="${val:1:${#val}-2}"
+    fi
+    export "$key=$val"
+  done <"$file"
+}
+
+# Repo root .env (compose lab) first, then agent/.env; shell exports win over both.
+load_env_file "$REPO_ROOT/.env"
+load_env_file "$ENV_FILE"
+
+VENV="${VENV:-.venv}"
+PY="${PYTHON:-python3}"
+
+if [[ ! -d "$VENV" ]]; then
+  echo "Creating virtual environment at $ROOT/$VENV …"
+  "$PY" -m venv "$VENV"
+fi
+
+PIP="$VENV/bin/pip"
+echo "Installing dependencies…"
+"$PIP" install -q -r requirements.txt
+
+exec "$VENV/bin/python" -m watchpot_agent "$@"

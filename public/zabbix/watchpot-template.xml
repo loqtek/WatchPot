@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<zabbix_export>
+  <version>7.4</version>
+  <template_groups>
+    <template_group>
+      <uuid>f1000001000140018000101010101010</uuid>
+      <name>Templates/Applications</name>
+    </template_group>
+  </template_groups>
+  <templates>
+    <template>
+      <uuid>f1000002000140028000202020202020</uuid>
+      <template>WatchPot</template>
+      <name>WatchPot by watchPot</name>
+      <description>Trapper items for WatchPot. Link to host watchpot, then add a dashboard graph on watchpot.severity.num (see Integrations guide).</description>
+      <groups>
+        <group>
+          <name>Templates/Applications</name>
+        </group>
+      </groups>
+      <items>
+        <item>
+          <uuid>f1000003000140038000303030303030</uuid>
+          <name>WatchPot event (JSON)</name>
+          <type>TRAP</type>
+          <key>watchpot.event</key>
+          <delay>0</delay>
+          <history>7d</history>
+          <trends>0</trends>
+          <value_type>TEXT</value_type>
+          <description>Full JSON payload from WatchPot</description>
+        </item>
+        <item>
+          <uuid>f1000004000140048000404040404040</uuid>
+          <name>WatchPot severity level</name>
+          <type>TRAP</type>
+          <key>watchpot.severity.num</key>
+          <delay>0</delay>
+          <history>7d</history>
+          <trends>365d</trends>
+          <value_type>UNSIGNED</value_type>
+          <description>0=debug 1=info 2=warning 3=error 4=critical</description>
+          <triggers>
+            <trigger>
+              <uuid>f1000005000140058000505050505050</uuid>
+              <expression>last(/WatchPot/watchpot.severity.num)=3 or last(/WatchPot/watchpot.severity.num)=4</expression>
+              <name>WatchPot: error or critical event</name>
+              <priority>WARNING</priority>
+            </trigger>
+          </triggers>
+        </item>
+        <item>
+          <uuid>f1000006000140068000606060606060</uuid>
+          <name>WatchPot events (counter)</name>
+          <type>TRAP</type>
+          <key>watchpot.events.count</key>
+          <delay>0</delay>
+          <history>7d</history>
+          <trends>365d</trends>
+          <value_type>UNSIGNED</value_type>
+          <description>1 per event — sum on graphs for rate</description>
+        </item>
+      </items>
+    </template>
+  </templates>
+</zabbix_export>

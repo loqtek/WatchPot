@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+BARE_PYTHON=0
+filtered=()
+for arg in "$@"; do
+  if [[ "$arg" == "--bare-python" ]]; then
+    BARE_PYTHON=1
+  else
+    filtered+=("$arg")
+  fi
+done
+
+run_venv() {
+  echo "watchPot setup (local backend/.venv)…"
+  cd "$ROOT/backend"
+  if [[ ! -d .venv ]]; then
+    echo "Creating backend/.venv …"
+    python3 -m venv .venv
+  fi
+  ./.venv/bin/pip install -q -r requirements.txt
+  exec ./.venv/bin/python -m app.setup_wizard "${filtered[@]}"
+}
+
+run_docker() {
+  echo "watchPot setup (Docker) — using compose service setup-wizard…"
+  cd "$ROOT"
+  docker compose build api
+  local -a tty=()
+  if [[ -t 0 ]] && [[ -t 1 ]]; then
+    tty=(-t)
+  fi
+  exec docker compose --profile setup run --rm -i "${tty[@]}" setup-wizard python -m app.setup_wizard "${filtered[@]}"
+}
+
+if [[ "$BARE_PYTHON" == 1 ]]; then
+  run_venv
+elif command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+  run_docker
+else
+  echo "Docker is not available or the daemon is not running; using local Python instead."
+  run_venv
+fi

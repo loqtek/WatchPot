@@ -1,0 +1,141 @@
+# -----------------------------------------------------------------------------
+# TLS / local dev artifacts
+# -----------------------------------------------------------------------------
+deploy/tls/out/*
+!deploy/tls/out/.gitkeep
+
+# -----------------------------------------------------------------------------
+# Secrets & local env (never commit real credentials)
+# -----------------------------------------------------------------------------
+.env
+**/.env
+**/.env.*
+!**/.env.example
+!.env.example
+
+# -----------------------------------------------------------------------------
+# Python — backend/, agent/, any package
+# -----------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.dmypy.json
+dmypy.json
+.pytype/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.cover
+.hypothesis/
+*.egg-info/
+*.egg
+dist/
+build/
+pip-wheel-metadata/
+wheels/
+*.whl
+
+# -----------------------------------------------------------------------------
+# Local databases & API state (SQLite path from backend/.env.example)
+# -----------------------------------------------------------------------------
+**/data/*.db
+**/data/*.db-*
+*.sqlite
+*.sqlite3
+
+# -----------------------------------------------------------------------------
+# Agent runtime state (written by local agent / compose stack)
+# -----------------------------------------------------------------------------
+agent/data/
+
+# -----------------------------------------------------------------------------
+# Node / Next.js (app at repository root)
+# -----------------------------------------------------------------------------
+node_modules/
+bun.lock
+.next/
+/out/
+.turbo/
+*.tsbuildinfo
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# -----------------------------------------------------------------------------
+# Package managers (keep lockfiles committed; ignore debug logs)
+# -----------------------------------------------------------------------------
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+bun-debug.log*
+
+# -----------------------------------------------------------------------------
+# Docker / Compose — machine-specific overrides
+# -----------------------------------------------------------------------------
+docker-compose.override.yml
+docker-compose.override.yaml
+*.override.yml
+*.override.yaml
+
+# -----------------------------------------------------------------------------
+# OS & editors
+# -----------------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+*~
+*.swp
+*.swo
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# VS Code — personal; uncomment if your team never commits shared settings
+# .vscode/
+
+# Cursor — local project/agent state (rules in repo are optional; this is default safe)
+.cursor/
+
+# -----------------------------------------------------------------------------
+# Logs & temp
+# -----------------------------------------------------------------------------
+*.log
+logs/
+tmp/
+temp/
+.cache/
+backend/data/
+backend/data/backups/
+*.tar
+*.tar.gz
+*.sql
+*.orig
+*.rej
+
+# -----------------------------------------------------------------------------
+# TLS keys / local certs (do not commit private material)
+# -----------------------------------------------------------------------------
+*.pem
+*.key
+
+# -----------------------------------------------------------------------------
+# Misc
+# -----------------------------------------------------------------------------
+.vercel
+.netlify

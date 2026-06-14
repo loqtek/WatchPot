@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$ROOT"
+
+VENV="${VENV:-.venv}"
+PY="${PYTHON:-python3}"
+
+load_env_file() {
+  local file="$1"
+  [[ -f "$file" ]] || return 0
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%$'\r'}"
+    [[ "$line" =~ ^[[:space:]]*# ]] && continue
+    [[ "$line" =~ ^[[:space:]]*$ ]] && continue
+    [[ "$line" != *=* ]] && continue
+    local key="${line%%=*}"
+    key="${key#"${key%%[![:space:]]*}"}"
+    key="${key%"${key##*[![:space:]]}"}"
+    [[ -z "$key" ]] && continue
+    if [[ -v "$key" ]]; then
+      continue
+    fi
+    local val="${line#*=}"
+    val="${val#"${val%%[![:space:]]*}"}"
+    [[ -z "$val" ]] && continue
+    export "$key=$val"
+  done <"$file"
+}
+
+load_env_file "$ROOT/.env"
+
+auto_local_agent_enabled() {
+  if [[ -n "${WATCHPOT_AUTO_LOCAL_AGENT:-}" ]]; then
+    case "${WATCHPOT_AUTO_LOCAL_AGENT,,}" in
+      0 | false | no | off) return 1 ;;
+      *) return 0 ;;
+    esac
+  fi
+  if [[ "${WATCHPOT_STACK_MODE:-full}" == "local_dev" ]]; then
+    return 0
+  fi
+  [[ "${DATABASE_URL:-}" == sqlite* ]]
+}
+
+if [[ ! -d "$VENV" ]]; then
+  echo "Creating virtual environment at $ROOT/$VENV ..."
+  "$PY" -m venv "$VENV"
+fi
+
+PIP="$VENV/bin/pip"
+UVICORN="$VENV/bin/uvicorn"
+
+echo "Installing dependencies..."
+"$PIP" install -q -r requirements.txt
+
+AGENT_PID=""
+if auto_local_agent_enabled; then
+  AGENT_DIR="$ROOT/../agent"
+  if [[ -x "$AGENT_DIR/run" ]]; then
+    echo "Auto local agent enabled — agent will start once the API is ready..."
+    (
+      cd "$AGENT_DIR"
+      export WATCHPOT_WAIT_FOR_REGISTRATION=1
+      # Wait for uvicorn startup + local agent reconcile (agent/.env write).
+      sleep 5
+      exec ./run
+    ) &
+    AGENT_PID=$!
+    cleanup_agent() {
+      if [[ -n "$AGENT_PID" ]] && kill -0 "$AGENT_PID" 2>/dev/null; then
+        kill "$AGENT_PID" 2>/dev/null || true
+        wait "$AGENT_PID" 2>/dev/null || true
+      fi
+    }
+    trap cleanup_agent EXIT INT TERM
+  else
+    echo "Warning: agent/run not found; skipping local agent auto-start." >&2
+  fi
+fi
+
+# Only watch Python sources — default reload watches all of backend/ including data/*.db,
+# which retriggers the worker on every SQLite write (bootstrap, heartbeats, etc.).
+exec "$UVICORN" app.main:app --reload --reload-dir "$ROOT/app" --host 0.0.0.0 --port 6040 "$@"

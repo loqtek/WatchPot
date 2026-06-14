@@ -1,0 +1,13 @@
+# Example stack for Cowrie SSH — tune ports and networks per your policy.
+version: "3.8"
+services:
+  cowrie:
+    image: cowrie/cowrie:latest
+    ports:
+      - "2222:2222"
+    restart: unless-stopped
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
