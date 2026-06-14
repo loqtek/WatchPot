@@ -104,6 +104,26 @@ else:
     app.include_router(public_agent.router, prefix="/api")
     app.include_router(agent_api.router, prefix="/api")
 
+
+def _patch_instrumentator_routing() -> None:
+    """FastAPI >=0.137 lists _IncludedRouter in app.routes; instrumentator expects Route.path."""
+    try:
+        from fastapi.routing import _iter_included_route_candidates
+    except ImportError:
+        return
+
+    from prometheus_fastapi_instrumentator import routing as prom_routing
+
+    original_get_route_name = prom_routing._get_route_name
+
+    def get_route_name(scope, routes, route_name=None):
+        flat_routes = list(_iter_included_route_candidates(routes))
+        return original_get_route_name(scope, flat_routes, route_name)
+
+    prom_routing._get_route_name = get_route_name
+
+
+_patch_instrumentator_routing()
 Instrumentator().instrument(app)
 
 
