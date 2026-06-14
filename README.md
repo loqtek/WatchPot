@@ -52,9 +52,6 @@ Stream docker logs across many containers and pots — up to 8 resizable windows
 **SIEM-style dashboards**  
 Custom monitoring grids, widgets, and preset templates for at-a-glance visibility.
 
-    </td>
-    <td width="50%" valign="top">
-
 **Unified event pipeline**  
 Container logs, infra snapshots, and an operator audit trail in one place.
 
@@ -67,7 +64,6 @@ Export events to external systems; Zabbix templates included out of the box.
 **Agent on the server is automatic**  
 The Docker stack registers a local agent for you. No token copy step on the control-plane host.
 
-    </td>
   </tr>
 </table>
 
