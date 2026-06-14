@@ -77,10 +77,8 @@ The Docker stack registers a local agent for you. No token copy step on the cont
 git clone https://github.com/loqtek/watchPot.git
 cd watchPot
 
-# Update config per your setup
 cp .env.example .env
-nano .env
-
+# Edit WATCHPOT_PUBLIC_HOST to your VPS IP or hostname, then:
 docker compose up -d --build
 ```
 

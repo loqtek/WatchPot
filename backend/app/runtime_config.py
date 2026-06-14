@@ -89,7 +89,7 @@ async def load_settings_from_db(session: AsyncSession) -> dict[str, str]:
         _access_token_expire_minutes = int(rows.get(ACCESS_TOKEN_EXPIRE_MINUTES) or str(60 * 24))
     except ValueError:
         _access_token_expire_minutes = 60 * 24
-    _cors_origins_list = _parse_origins(rows.get(CORS_ORIGINS) or "http://localhost:3020")
+    _cors_origins_list = _parse_origins(rows.get(CORS_ORIGINS) or "https://localhost,https://127.0.0.1")
     try:
         raw_paths = rows.get(EXTERNAL_LOG_PATHS) or "[]"
         parsed = json.loads(raw_paths)

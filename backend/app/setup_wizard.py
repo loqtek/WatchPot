@@ -36,6 +36,33 @@ def write_backend_env(pairs: dict[str, str]) -> None:
     print(f"Wrote {path}")
 
 
+def https_public_urls(public_host: str) -> dict[str, str]:
+    host = public_host.strip() or "localhost"
+    origin = f"https://{host}"
+    return {
+        "WATCHPOT_PUBLIC_HOST": host,
+        "WATCHPOT_TLS_EXTRA_IPS": host,
+        "NEXT_PUBLIC_API_URL": f"{origin}/api",
+        "WATCHPOT_CORS_ORIGINS": f"{origin},https://localhost,https://127.0.0.1",
+    }
+
+
+def write_root_env(pairs: dict[str, str]) -> None:
+    path = REPO_ROOT / ".env"
+    merged: dict[str, str] = {}
+    if path.exists():
+        for line in path.read_text().splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            k, _, v = line.partition("=")
+            merged[k.strip()] = v.strip()
+    merged.update(pairs)
+    body = "\n".join(f"{k}={v}" for k, v in sorted(merged.items())) + "\n"
+    path.write_text(body)
+    print(f"Wrote {path}")
+
+
 def find_python() -> Path:
     venv_py = BACKEND_DIR / ".venv" / "bin" / "python"
     if venv_py.is_file():
@@ -91,24 +118,27 @@ def build_database_url(db: str, mode: str) -> str:
     raise ValueError(db)
 
 
-def print_next_steps(mode: str, db: str) -> None:
+def print_next_steps(mode: str, db: str, public_host: str | None = None) -> None:
     print("\n--- Next steps ---")
     if mode == "local_dev":
         print("  1) cd backend && ./run")
         print("  2) From repo root: npm install && npm run dev  (set NEXT_PUBLIC_API_URL=http://127.0.0.1:6040/api)")
     elif mode == "full":
+        host = public_host or "localhost"
         print("  From repo root: docker compose up -d --build")
-        print("  UI http://127.0.0.1:3020  API http://127.0.0.1:6040")
+        print(f"  UI + API: https://{host}  (API at https://{host}/api via nginx TLS proxy)")
         print(
             "  Agent (optional, same machine as compose): add WATCHPOT_POT_ID + WATCHPOT_AGENT_TOKEN to .env, then "
             "`docker compose --profile agent up -d agent` (mounts the host Docker socket)."
         )
     elif mode == "api_only":
-        print("  docker compose up -d --build postgres api prometheus grafana")
+        host = public_host or "localhost"
+        print("  docker compose up -d --build postgres api")
+        print(f"  API: https://{host}/api")
     elif mode == "ui_only":
         print("  Build web with your API URL baked in, then:")
-        print('    docker compose build --build-arg NEXT_PUBLIC_API_URL="https://your-api/api" web  # context: repo root')
-        print("    docker compose up -d web")
+        print('    docker compose build --build-arg NEXT_PUBLIC_API_URL="https://your-host/api" web')
+        print("    docker compose up -d web proxy")
     if db in ("postgres", "mysql"):
         print(f"  Helper DB compose: deploy/setup/docker-compose.{db}.yml (localhost port {'5433' if db == 'postgres' else '3307'})")
 
@@ -121,6 +151,7 @@ def apply_configuration(
     start_docker: bool,
     cors: str | None,
     next_public_api_url: str | None,
+    public_host: str | None,
     skip_bootstrap: bool,
 ) -> None:
     url = build_database_url(db, mode)
@@ -135,18 +166,35 @@ def apply_configuration(
         "WATCHPOT_STACK_MODE": mode,
         "WATCHPOT_API_ROLE": "control",
     }
+    root_pairs: dict[str, str] = {}
+    resolved_public_host = public_host
+    if mode in ("full", "api_only", "ui_only"):
+        if mode in ("full", "api_only") and not resolved_public_host and not next_public_api_url:
+            resolved_public_host = "localhost"
+        if resolved_public_host:
+            root_pairs.update(https_public_urls(resolved_public_host))
+            if not cors:
+                cors = root_pairs["WATCHPOT_CORS_ORIGINS"]
+            if not next_public_api_url:
+                next_public_api_url = root_pairs["NEXT_PUBLIC_API_URL"]
+        elif next_public_api_url:
+            root_pairs["NEXT_PUBLIC_API_URL"] = next_public_api_url
     if cors:
         env_pairs["WATCHPOT_CORS_ORIGINS"] = cors
+        root_pairs["WATCHPOT_CORS_ORIGINS"] = cors
     if next_public_api_url:
         env_pairs["NEXT_PUBLIC_API_URL"] = next_public_api_url
+        root_pairs["NEXT_PUBLIC_API_URL"] = next_public_api_url
     if paths_list:
         env_pairs["WATCHPOT_EXTERNAL_LOG_PATHS_JSON"] = json.dumps(paths_list)
 
     write_backend_env(env_pairs)
+    if root_pairs:
+        write_root_env(root_pairs)
 
     if skip_bootstrap:
         print("Skipping one-shot DB bootstrap (API will run it on first startup; watch API logs for wpadmin).")
-        print_next_steps(mode, db)
+        print_next_steps(mode, db, resolved_public_host)
         return
 
     bootstrap_env: dict[str, str | None] = {
@@ -160,7 +208,7 @@ def apply_configuration(
     print("\nInitializing database and default admin (password printed in output below).\n")
     run_bootstrap_subprocess({k: v for k, v in bootstrap_env.items() if v is not None})
 
-    print_next_steps(mode, db)
+    print_next_steps(mode, db, resolved_public_host)
 
 
 def interactive() -> None:
@@ -201,8 +249,15 @@ def interactive() -> None:
         )
 
     next_url: str | None = None
-    if mode == "ui_only":
-        next_url = input("Remote API base URL including /api (e.g. http://10.0.0.5:6040/api): ").strip() or None
+    public_host: str | None = None
+    if mode in ("full", "api_only"):
+        public_host = (
+            input("Public host/IP for HTTPS (browser + TLS cert SAN) [localhost]: ").strip() or "localhost"
+        )
+    elif mode == "ui_only":
+        next_url = input("Remote API base URL including /api (e.g. https://10.0.0.5/api): ").strip() or None
+        if not next_url:
+            public_host = input("Public host/IP for HTTPS UI [localhost]: ").strip() or "localhost"
 
     cors_in = input("Extra CORS origins (comma-separated) [empty]: ").strip() or None
 
@@ -220,6 +275,7 @@ def interactive() -> None:
         start_docker=start_docker,
         cors=cors_in,
         next_public_api_url=next_url,
+        public_host=public_host,
         skip_bootstrap=skip_bootstrap,
     )
 
@@ -235,7 +291,8 @@ def main() -> None:
     )
     parser.add_argument("--docker-db", action="store_true", help="Start helper Docker DB (postgres/mysql)")
     parser.add_argument("--cors", help="Comma-separated CORS origins")
-    parser.add_argument("--next-public-api-url", help="For ui_only / web build")
+    parser.add_argument("--public-host", help="Public host/IP for HTTPS (writes root .env for Docker deploys)")
+    parser.add_argument("--next-public-api-url", help="Override browser API URL (default: https://<public-host>/api)")
     parser.add_argument(
         "--external-log-paths",
         help="Comma-separated paths (stored in app_settings as JSON)",
@@ -255,6 +312,7 @@ def main() -> None:
             start_docker=args.docker_db,
             cors=args.cors,
             next_public_api_url=args.next_public_api_url,
+            public_host=args.public_host,
             skip_bootstrap=skip,
         )
     else:

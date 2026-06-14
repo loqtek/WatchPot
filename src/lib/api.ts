@@ -1,10 +1,26 @@
 const TOKEN_KEY = "watchpot_token";
 
-export function getApiBase(): string {
-  if (typeof window === "undefined") {
-    return process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:6040/api";
+/** Browser + Docker default: HTTPS via nginx same-origin (/api). Plain HTTP :6040 is local dev only. */
+export function resolveApiBase(
+  configured: string | undefined,
+  location?: Pick<Location, "origin" | "protocol">,
+): string {
+  const trimmed = configured?.replace(/\/$/, "");
+  if (location) {
+    const sameOrigin = `${location.origin}/api`;
+    if (!trimmed) return sameOrigin;
+    if (location.protocol === "https:" && trimmed.startsWith("http://")) return sameOrigin;
   }
-  return process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:6040/api";
+  if (trimmed) return trimmed;
+  return location ? `${location.origin}/api` : "https://localhost/api";
+}
+
+export function getApiBase(): string {
+  const configured = process.env.NEXT_PUBLIC_API_URL;
+  if (typeof window === "undefined") {
+    return resolveApiBase(configured);
+  }
+  return resolveApiBase(configured, window.location);
 }
 
 /** Origin without `/api` — for `/docs`, `/health`, etc. */

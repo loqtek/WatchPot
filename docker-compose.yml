@@ -1,7 +1,7 @@
 # watchPot control-plane stack
 #
 # Quick start (SQLite + HTTPS — default):
-#   cp backend/.env.example backend/.env
+#   cp .env.example .env   # set WATCHPOT_PUBLIC_HOST to your IP/hostname
 #   docker compose up -d --build
 #   docker compose logs api | grep -A4 watchPot   # one-time wpadmin password
 #
@@ -20,7 +20,8 @@
 # Fresh database (wipes SQLite + TLS certs):
 #   docker compose down -v
 #
-# Plain HTTP debugging: temporarily add ports to api/web in docker-compose.override.yml
+# Plain HTTP debugging: set WATCHPOT_AGENT_API_URL=http://api:6040/api and expose api/web ports
+# in docker-compose.override.yml (not the default — all traffic goes through the TLS proxy).
 #
 # ── Database options ──────────────────────────────────────────────────────────
 # Set DATABASE_URL in backend/.env and/or override on the `api` service below.
@@ -66,7 +67,7 @@ services:
       WATCHPOT_STACK_MODE: ${WATCHPOT_STACK_MODE:-full}
       WATCHPOT_AUTO_LOCAL_AGENT: ${WATCHPOT_AUTO_LOCAL_AGENT:-true}
       WATCHPOT_AGENT_DIR: /agent
-      WATCHPOT_LOCAL_AGENT_API_URL: http://api:6040/api
+      WATCHPOT_LOCAL_AGENT_API_URL: ${WATCHPOT_AGENT_API_URL:-https://proxy/api}
       WATCHPOT_LOCAL_AGENT_WORK_DIR: /var/lib/watchpot
       WATCHPOT_CORS_ORIGINS: ${WATCHPOT_CORS_ORIGINS:-https://localhost,https://127.0.0.1}
       WATCHPOT_ALLOW_LOOPBACK_CORS: ${WATCHPOT_ALLOW_LOOPBACK_CORS:-true}
@@ -97,7 +98,8 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://localhost/api}
+        WATCHPOT_PUBLIC_HOST: ${WATCHPOT_PUBLIC_HOST:-localhost}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
     image: watchpot-web:local
     environment:
       PORT: "3020"
@@ -125,7 +127,8 @@ services:
       dockerfile: Dockerfile
     image: watchpot-agent:local
     environment:
-      WATCHPOT_API_URL: http://api:6040/api
+      WATCHPOT_API_URL: ${WATCHPOT_AGENT_API_URL:-https://proxy/api}
+      WATCHPOT_TLS_CA_FILE: /etc/watchpot/tls/ca.crt
       WATCHPOT_AGENT_ENV_FILE: /agent/.env
       WATCHPOT_WAIT_FOR_REGISTRATION: "1"
       WATCHPOT_WORK_DIR: /var/lib/watchpot
@@ -134,7 +137,10 @@ services:
       - ./agent/watchpot_agent:/app/watchpot_agent:ro
       - /var/run/docker.sock:/var/run/docker.sock
       - agent_work:/var/lib/watchpot
+      - watchpot_tls:/etc/watchpot/tls:ro
     depends_on:
+      proxy:
+        condition: service_started
       api:
         condition: service_healthy
 

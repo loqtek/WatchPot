@@ -8,10 +8,12 @@ FROM node:22-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+ARG WATCHPOT_PUBLIC_HOST=localhost
 ARG NEXT_PUBLIC_API_URL
-ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN npm run build
+RUN RESOLVED="${NEXT_PUBLIC_API_URL:-https://${WATCHPOT_PUBLIC_HOST}/api}" && \
+    echo "NEXT_PUBLIC_API_URL=$RESOLVED" && \
+    NEXT_PUBLIC_API_URL="$RESOLVED" npm run build
 
 FROM node:22-alpine AS runner
 WORKDIR /app
