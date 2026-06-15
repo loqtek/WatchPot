@@ -203,7 +203,11 @@ volumes:
     ports:
       - "{{SMTP_PORT}}:25"
     restart: {{RESTART_POLICY}}
-{{HARDENING}}`,
+    volumes:
+      - mailoney-log:/opt/mailoney/logs
+{{HARDENING}}
+volumes:
+  mailoney-log:`,
   },
   {
     id: "adbhoney",
@@ -222,7 +226,13 @@ volumes:
     ports:
       - "{{ADB_PORT}}:5555"
     restart: {{RESTART_POLICY}}
-{{HARDENING}}`,
+    volumes:
+      - adbhoney-log:/opt/adbhoney/log
+      - adbhoney-dl:/opt/adbhoney/dl
+{{HARDENING}}
+volumes:
+  adbhoney-log:
+  adbhoney-dl:`,
   },
   {
     id: "redishoneypot",
@@ -241,7 +251,11 @@ volumes:
     ports:
       - "{{REDIS_PORT}}:6379"
     restart: {{RESTART_POLICY}}
-{{HARDENING}}`,
+    volumes:
+      - redishoneypot-log:/var/log/redishoneypot
+{{HARDENING}}
+volumes:
+  redishoneypot-log:`,
   },
   {
     id: "elasticpot",
@@ -260,7 +274,11 @@ volumes:
     ports:
       - "{{ES_PORT}}:9200"
     restart: {{RESTART_POLICY}}
-{{HARDENING}}`,
+    volumes:
+      - elasticpot-log:/opt/elasticpot/log
+{{HARDENING}}
+volumes:
+  elasticpot-log:`,
   },
   {
     id: "ciscoasa",
@@ -285,7 +303,13 @@ volumes:
       - "500:500/udp"
       - "{{HTTPS_PORT}}:8443"
     restart: {{RESTART_POLICY}}
-{{HARDENING}}`,
+    tmpfs:
+      - /tmp/ciscoasa:uid=2000,gid=2000
+    volumes:
+      - ciscoasa-log:/var/log/ciscoasa
+{{HARDENING}}
+volumes:
+  ciscoasa-log:`,
   },
   {
     id: "conpot",
@@ -639,13 +663,17 @@ volumes:
     ports:
       - "{{REDIS_PORT}}:6379"
     restart: {{RESTART_POLICY}}
+    volumes:
+      - redishoneypot-log:/var/log/redishoneypot
 {{HARDENING}}
   hellpot:
     image: ghcr.io/yunginnanet/hellpot:latest
     ports:
       - "{{HTTP_PORT}}:8080"
     restart: {{RESTART_POLICY}}
-{{HARDENING}}`,
+{{HARDENING}}
+volumes:
+  redishoneypot-log:`,
   },
   {
     id: "web-lab-duo",
