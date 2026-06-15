@@ -59,6 +59,13 @@ const HARDENING_ON = `    read_only: true
 
 const HARDENING_OFF = "";
 
+/** T-Pot images redirect stdout to log files as uid 2000; fresh named volumes are root-owned. */
+const TPOT_LOG_USER = `    user: "0:0"`;
+
+/** Hellpot writes rotating logs under /logs (not stdout). */
+const HELLPOT_LOGS_TMPFS = `    tmpfs:
+      - /logs:rw,noexec,nosuid,size=64m`;
+
 const RESTART_OPTS = [
   { value: "unless-stopped", label: "Unless stopped" },
   { value: "always", label: "Always" },
@@ -143,6 +150,8 @@ export const STACK_TEMPLATES: StackTemplate[] = [
     restart: {{RESTART_POLICY}}
     volumes:
       - dionaea-log:/var/log/dionaea
+${TPOT_LOG_USER}
+{{HARDENING}}
     # Some kernels need: privileged: true — enable only if Dionaea fails to bind.
 volumes:
   dionaea-log:`,
@@ -205,6 +214,7 @@ volumes:
     restart: {{RESTART_POLICY}}
     volumes:
       - mailoney-log:/opt/mailoney/logs
+${TPOT_LOG_USER}
 {{HARDENING}}
 volumes:
   mailoney-log:`,
@@ -229,6 +239,7 @@ volumes:
     volumes:
       - adbhoney-log:/opt/adbhoney/log
       - adbhoney-dl:/opt/adbhoney/dl
+${TPOT_LOG_USER}
 {{HARDENING}}
 volumes:
   adbhoney-log:
@@ -253,6 +264,7 @@ volumes:
     restart: {{RESTART_POLICY}}
     volumes:
       - redishoneypot-log:/var/log/redishoneypot
+${TPOT_LOG_USER}
 {{HARDENING}}
 volumes:
   redishoneypot-log:`,
@@ -276,6 +288,7 @@ volumes:
     restart: {{RESTART_POLICY}}
     volumes:
       - elasticpot-log:/opt/elasticpot/log
+${TPOT_LOG_USER}
 {{HARDENING}}
 volumes:
   elasticpot-log:`,
@@ -307,6 +320,7 @@ volumes:
       - /tmp/ciscoasa:uid=2000,gid=2000
     volumes:
       - ciscoasa-log:/var/log/ciscoasa
+${TPOT_LOG_USER}
 {{HARDENING}}
 volumes:
   ciscoasa-log:`,
@@ -359,6 +373,7 @@ volumes:
     ports:
       - "{{HTTP_PORT}}:8080"
     restart: {{RESTART_POLICY}}
+${HELLPOT_LOGS_TMPFS}
 {{HARDENING}}`,
   },
   {
@@ -665,12 +680,14 @@ volumes:
     restart: {{RESTART_POLICY}}
     volumes:
       - redishoneypot-log:/var/log/redishoneypot
+${TPOT_LOG_USER}
 {{HARDENING}}
   hellpot:
     image: ghcr.io/yunginnanet/hellpot:latest
     ports:
       - "{{HTTP_PORT}}:8080"
     restart: {{RESTART_POLICY}}
+${HELLPOT_LOGS_TMPFS}
 {{HARDENING}}
 volumes:
   redishoneypot-log:`,
