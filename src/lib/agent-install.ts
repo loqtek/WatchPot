@@ -37,7 +37,7 @@ export function buildAgentInstallCommand(
   const resolved = (apiUrl ?? getApiBase()).replace(/\/$/, "");
   const scriptUrl = getAgentInstallScriptUrl(resolved);
   return [
-    `curl -fsSL ${shellQuote(scriptUrl)} | \\`,
+    `curl -fsS ${shellQuote(scriptUrl)} | \\`,
     `  WATCHPOT_API_URL=${shellQuote(resolved)} \\`,
     `  WATCHPOT_POT_ID=${shellQuote(potId)} \\`,
     `  WATCHPOT_AGENT_TOKEN=${shellQuote(agentToken)} \\`,

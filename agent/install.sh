@@ -43,16 +43,41 @@ http_api_url() {
   fi
 }
 
+ca_valid() {
+  [ -f "$CA_FILE" ] && grep -q "BEGIN CERTIFICATE" "$CA_FILE" 2>/dev/null
+}
+
+# Plain HTTP only — never follow redirects to HTTPS (would save HTML/error bytes as the CA).
+curl_http() {
+  curl -fsS --max-redirs 0 "$@"
+}
+
 bootstrap_ca() {
-  if [ -f "$CA_FILE" ] && [ "${WATCHPOT_TLS_CA_REFRESH:-}" != "1" ]; then
+  if ca_valid && [ "${WATCHPOT_TLS_CA_REFRESH:-}" != "1" ]; then
     return 0
+  fi
+  if [ -f "$CA_FILE" ] && [ "${WATCHPOT_TLS_CA_REFRESH:-}" != "1" ]; then
+    echo "→ Removing invalid cached CA at $CA_FILE (not a PEM certificate)…" >&2
+    rm -f "$CA_FILE"
   fi
   local http_base
   http_base="$(http_api_url)"
   mkdir -p "$(dirname "$CA_FILE")"
-  echo "→ Fetching control-plane CA from ${http_base}/public/agent/ca.crt …"
-  curl -fsSL "${http_base}/public/agent/ca.crt" -o "$CA_FILE"
+  echo "→ Fetching control-plane CA from ${http_base}/public/agent/ca.crt (HTTP, no redirect)…"
+  if ! curl_http "${http_base}/public/agent/ca.crt" -o "$CA_FILE"; then
+    echo "Failed to download CA over HTTP. Common causes:" >&2
+    echo "  • Control-plane proxy not updated (needs port-80 exceptions for /api/public/agent/*)" >&2
+    echo "  • Port 80 redirects to HTTPS — recreate proxy: docker compose up -d --force-recreate proxy" >&2
+    echo "  • TLS not initialized yet — ensure proxy is running on the control plane" >&2
+    exit 1
+  fi
   chmod 644 "$CA_FILE"
+  if ! ca_valid; then
+    echo "Downloaded file is not a valid PEM certificate (got HTML or an error page?)." >&2
+    echo "Try: curl -v '${http_base}/public/agent/ca.crt'" >&2
+    rm -f "$CA_FILE"
+    exit 1
+  fi
 }
 
 api_host_port() {
@@ -93,10 +118,10 @@ curl_api() {
   read -r host port < <(api_host_port "$url")
   if is_ipv4 "$host"; then
     local resolved="${url//$host/localhost}"
-    curl -fsSL --cacert "$CA_FILE" --resolve "localhost:${port}:${host}" "$resolved" "$@"
+    curl -fsS --cacert "$CA_FILE" --resolve "localhost:${port}:${host}" "$resolved" "$@"
     return
   fi
-  curl -fsSL --cacert "$CA_FILE" "$url" "$@"
+  curl -fsS --cacert "$CA_FILE" "$url" "$@"
 }
 
 if ! command -v curl >/dev/null 2>&1; then
