@@ -55,8 +55,48 @@ bootstrap_ca() {
   chmod 644 "$CA_FILE"
 }
 
+api_host_port() {
+  local url="$1"
+  local scheme hostport host port
+  if [[ "$url" == https://* ]]; then
+    scheme=https
+    hostport="${url#https://}"
+  elif [[ "$url" == http://* ]]; then
+    scheme=http
+    hostport="${url#http://}"
+  else
+    hostport="$url"
+    scheme=https
+  fi
+  hostport="${hostport%%/*}"
+  host="${hostport%%:*}"
+  port="${hostport#*:}"
+  if [ "$port" = "$hostport" ]; then
+    if [ "$scheme" = https ]; then
+      port=443
+    else
+      port=80
+    fi
+  fi
+  printf '%s %s\n' "$host" "$port"
+}
+
+is_ipv4() {
+  local host="$1"
+  [[ "$host" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]
+}
+
 curl_api() {
-  curl -fsSL --cacert "$CA_FILE" "$@"
+  local url="$1"
+  shift
+  local host port
+  read -r host port < <(api_host_port "$url")
+  if is_ipv4 "$host"; then
+    local resolved="${url//$host/localhost}"
+    curl -fsSL --cacert "$CA_FILE" --resolve "localhost:${port}:${host}" "$resolved" "$@"
+    return
+  fi
+  curl -fsSL --cacert "$CA_FILE" "$url" "$@"
 }
 
 if ! command -v curl >/dev/null 2>&1; then

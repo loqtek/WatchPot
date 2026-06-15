@@ -11,7 +11,11 @@ if [ -f "$TLS_DIR/server.crt" ] && [ -f "$TLS_DIR/server.key" ]; then
   if [ -f "$TLS_DIR/ca.crt" ]; then
     cp "$TLS_DIR/ca.crt" "$EXPORT_DIR/watchpot-local-ca.crt"
   fi
-  exit 0
+  if [ "${WATCHPOT_TLS_REGENERATE:-}" != "1" ]; then
+    exit 0
+  fi
+  echo "watchPot TLS: WATCHPOT_TLS_REGENERATE=1 — recreating server certificate…"
+  rm -f "$TLS_DIR/server.crt" "$TLS_DIR/server.key" "$TLS_DIR/server.csr" "$TLS_DIR/server.cnf" "$TLS_DIR/ca.srl"
 fi
 
 echo "watchPot TLS: generating local CA and server certificate…"
