@@ -29,6 +29,7 @@ async def upload_artifact(
     artifact_id: str,
     artifact_path: str,
     expected_sha256: str,
+    verify: str | bool = True,
 ) -> tuple[bool, str]:
     path = Path(artifact_path)
     if not path.is_file():
@@ -50,7 +51,7 @@ async def upload_artifact(
     try:
         with path.open("rb") as f:
             files = {"file": (path.name, f, "application/octet-stream")}
-            async with httpx.AsyncClient(timeout=httpx.Timeout(1800.0)) as client:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(1800.0), verify=verify) as client:
                 r = await client.post(url, headers=upload_headers, files=files)
         if r.status_code >= 400:
             return False, f"upload HTTP {r.status_code}: {r.text[:500]}"
@@ -68,6 +69,7 @@ async def run_backup_ingest(
     api_base_url: str,
     headers: dict[str, str],
     params: dict[str, Any],
+    verify: str | bool = True,
 ) -> tuple[bool, str]:
     job_id = str(params.get("job_id") or "")
     artifacts = params.get("artifacts")
@@ -92,6 +94,7 @@ async def run_backup_ingest(
             artifact_id=aid,
             artifact_path=path,
             expected_sha256=sha,
+            verify=verify,
         )
         if ok:
             try:

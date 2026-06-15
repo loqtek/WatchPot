@@ -9,6 +9,7 @@ import httpx
 
 from watchpot_agent.client import ControlClient
 from watchpot_agent.config import AgentSettings
+from watchpot_agent.tls import httpx_verify
 from watchpot_agent.docker_ops import compose_down_project, compose_up, docker_ping, stack_project_name
 from watchpot_agent.commands import process_pending_commands
 from watchpot_agent.reporter import build_infra_events
@@ -63,7 +64,8 @@ async def ensure_connected(
             sys.exit(1)
 
         try:
-            async with httpx.AsyncClient(timeout=5.0) as http:
+            verify = httpx_verify(settings)
+            async with httpx.AsyncClient(timeout=5.0, verify=verify) as http:
                 health = await http.get(health_url)
                 health.raise_for_status()
         except httpx.ConnectError:

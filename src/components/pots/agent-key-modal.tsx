@@ -113,8 +113,8 @@ export function AgentKeyModal({ open, agentKey, potId, potName, onClose }: Agent
               </p>
             ) : null}
             <p className="mt-2 text-sm text-zinc-400">
-              Requires Docker on the host. The script downloads the agent, builds the image, and connects to this
-              control plane. Your pot should show as live within ~30 seconds.
+              Requires Docker on the host. Fetches the install script over HTTP, bootstraps the watchPot CA, then
+              connects over HTTPS. Your pot should show as live within ~30 seconds.
             </p>
             {localhostApi ? (
               <p className="mt-2 rounded-lg border border-amber-500/30 bg-amber-950/25 px-3 py-2 text-xs leading-relaxed text-amber-100/90">
@@ -129,7 +129,7 @@ export function AgentKeyModal({ open, agentKey, potId, potName, onClose }: Agent
             <Input
               ref={hostInputRef}
               id="control-plane-host"
-              placeholder="e.g. watchpot.example.com or https://watchpot.example.com:6040"
+              placeholder="e.g. watchpot.example.com or 172.233.189.172"
               value={hostInput}
               onChange={(e) => setHostInput(e.target.value)}
               autoComplete="off"

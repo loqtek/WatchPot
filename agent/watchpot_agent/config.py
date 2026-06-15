@@ -39,6 +39,8 @@ class AgentSettings(BaseSettings):
     heartbeat_interval_sec: int = Field(default=30, validation_alias="WATCHPOT_HEARTBEAT_INTERVAL_SEC")
     infra_report_interval_sec: int = Field(default=90, validation_alias="WATCHPOT_INFRA_REPORT_INTERVAL_SEC")
     work_dir: str = Field(default="/var/lib/watchpot", validation_alias="WATCHPOT_WORK_DIR")
+    tls_ca_file: str = Field(default="", validation_alias="WATCHPOT_TLS_CA_FILE")
+    tls_verify: bool = Field(default=True, validation_alias="WATCHPOT_TLS_VERIFY")
     compose_project_prefix: str = Field(
         default="wp",
         validation_alias=AliasChoices("WATCHPOT_COMPOSE_PROJECT_PREFIX", "COMPOSE_PROJECT_PREFIX"),

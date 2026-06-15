@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import os
 import tarfile
 from pathlib import Path
 
@@ -15,6 +16,26 @@ router = APIRouter(prefix="/public/agent", tags=["public-agent"])
 
 _BUNDLE_SKIP_DIRS = {".venv", "__pycache__", "data", ".git"}
 _BUNDLE_SKIP_FILES = {".env"}
+
+
+def _ca_cert_paths() -> list[Path]:
+    paths: list[Path] = []
+    if raw := os.environ.get("WATCHPOT_TLS_CA_FILE"):
+        paths.append(Path(raw))
+    paths.extend(
+        [
+            Path("/etc/watchpot/tls/ca.crt"),
+            Path("/etc/nginx/tls/ca.crt"),
+        ],
+    )
+    return paths
+
+
+def _read_ca_cert() -> bytes:
+    for path in _ca_cert_paths():
+        if path.is_file():
+            return path.read_bytes()
+    raise HTTPException(status_code=503, detail="TLS CA certificate unavailable on this server")
 
 
 def _install_script_path() -> Path:
@@ -56,6 +77,15 @@ def _build_bundle_bytes() -> bytes:
         for path, arcname in files:
             tar.add(path, arcname=arcname)
     return buf.getvalue()
+
+
+@router.get("/ca.crt")
+async def get_ca_cert() -> Response:
+    return Response(
+        content=_read_ca_cert(),
+        media_type="application/x-pem-file",
+        headers={"Cache-Control": "public, max-age=300"},
+    )
 
 
 @router.get("/install.sh")

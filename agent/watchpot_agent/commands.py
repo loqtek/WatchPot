@@ -69,6 +69,7 @@ async def run_command(
     desired_by_stack: dict[str, dict[str, Any]],
     api_base_url: str | None = None,
     api_headers: dict[str, str] | None = None,
+    api_verify: str | bool = True,
 ) -> tuple[str, str | None, str | None]:
     """Returns (status, output, error)."""
     action = (item.get("action") or "").strip().lower()
@@ -140,6 +141,7 @@ async def run_command(
             api_base_url=api_base_url,
             headers=api_headers,
             params=params,
+            verify=api_verify,
         )
         return ("completed" if ok else "failed"), out, None if ok else out
 
@@ -185,6 +187,7 @@ async def process_pending_commands(
             desired_by_stack=desired_map,
             api_base_url=getattr(client, "_settings", None) and client._settings.api_base_url,
             api_headers=getattr(client, "_headers", None),
+            api_verify=getattr(client, "_verify", True),
         )
         try:
             await client.complete_command(cmd_id, status=status, output=output, error=error)

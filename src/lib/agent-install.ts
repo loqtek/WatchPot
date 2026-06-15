@@ -21,9 +21,11 @@ export function resolveControlPlaneApiUrl(hostInput: string, fallback?: string):
   return url;
 }
 
+/** Bootstrap install script over HTTP; agent runtime still uses HTTPS WATCHPOT_API_URL. */
 export function getAgentInstallScriptUrl(apiUrl?: string): string {
   const base = (apiUrl ?? getApiBase()).replace(/\/$/, "");
-  return `${base}/public/agent/install.sh`;
+  const httpBase = base.replace(/^https:/i, "http:");
+  return `${httpBase}/public/agent/install.sh`;
 }
 
 /** One-liner to run on the honeypot host (requires Docker). */

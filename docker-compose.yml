@@ -69,6 +69,7 @@ services:
       WATCHPOT_AGENT_DIR: /agent
       WATCHPOT_LOCAL_AGENT_API_URL: ${WATCHPOT_AGENT_API_URL:-https://proxy/api}
       WATCHPOT_LOCAL_AGENT_WORK_DIR: /var/lib/watchpot
+      WATCHPOT_TLS_CA_FILE: /etc/watchpot/tls/ca.crt
       WATCHPOT_CORS_ORIGINS: ${WATCHPOT_CORS_ORIGINS:-https://localhost,https://127.0.0.1}
       WATCHPOT_ALLOW_LOOPBACK_CORS: ${WATCHPOT_ALLOW_LOOPBACK_CORS:-true}
       EXPOSE_OPENAPI: ${EXPOSE_OPENAPI:-true}
@@ -76,6 +77,7 @@ services:
     volumes:
       - ./agent:/agent
       - watchpot_sqlite:/app/data
+      - watchpot_tls:/etc/watchpot/tls:ro
     expose:
       - "6040"
     depends_on:

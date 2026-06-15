@@ -156,6 +156,8 @@ def write_agent_credentials(pot_id: UUID, agent_key: str) -> None:
         "WATCHPOT_AGENT_TOKEN": agent_key,
         "WATCHPOT_WORK_DIR": work_dir,
     }
+    if api_url.startswith("https://") and os.environ.get("WATCHPOT_TLS_CA_FILE"):
+        updates["WATCHPOT_TLS_CA_FILE"] = os.environ["WATCHPOT_TLS_CA_FILE"]
     _merge_env_file(env_path, updates)
     root_updates = {
         "WATCHPOT_POT_ID": str(pot_id),
