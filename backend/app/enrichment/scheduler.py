@@ -10,7 +10,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import async_session_factory
+from app.database import async_session_factory, commit_session
 from app.enrichment.cve import sync_cve_cache
 from app.enrichment.ip_intel import scan_events_for_ips
 from app.enrichment.worker import batch_reenrich
@@ -86,12 +86,14 @@ async def run_due_schedules(session: AsyncSession) -> int:
 
 
 async def enrichment_scheduler_loop() -> None:
+    # Offset from backup_scheduler_loop so both do not write on the same tick.
+    await asyncio.sleep(POLL_INTERVAL_SEC // 2)
     while True:
         try:
             await asyncio.sleep(POLL_INTERVAL_SEC)
             async with async_session_factory() as session:
                 n = await run_due_schedules(session)
-                await session.commit()
+                await commit_session(session)
                 if n:
                     log.info("ran %s enrichment schedule(s)", n)
         except asyncio.CancelledError:

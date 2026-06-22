@@ -10,7 +10,7 @@ from starlette.responses import Response
 
 from app.config import get_env_settings
 from app.bootstrap import run_bootstrap
-from app.database import async_session_factory, init_db
+from app.database import async_session_factory, commit_session, init_db
 from app.local_agent import reconcile_auto_local_agent
 from app.middleware.dynamic_cors import DynamicCORSMiddleware
 from app.runtime_config import get_cors_origins
@@ -44,7 +44,7 @@ async def lifespan(app: FastAPI):
     async with async_session_factory() as session:
         await run_bootstrap(session)
         local_agent = await reconcile_auto_local_agent(session, reason="startup")
-        await session.commit()
+        await commit_session(session)
         if local_agent is not None:
             if local_agent.credentials_written:
                 log.info(

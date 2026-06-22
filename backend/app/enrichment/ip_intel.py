@@ -251,11 +251,11 @@ def schedule_ip_tracking(event_ids: list[UUID]) -> None:
 
     async def _run() -> None:
         try:
-            from app.database import async_session_factory
+            from app.database import async_session_factory, commit_session
 
             async with async_session_factory() as session:
                 n = await track_ips_for_events(session, event_ids)
-                await session.commit()
+                await commit_session(session)
                 if n:
                     log.debug("tracked %s IP observation(s)", n)
         except Exception:

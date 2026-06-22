@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
-from app.database import async_session_factory
+from app.database import async_session_factory, commit_session
 from app.enrichment.config import load_config
 from app.enrichment.cve import lookup_cves
 from app.enrichment.engine import aggregate_matches, match_rules
@@ -181,7 +181,7 @@ def schedule_enrichment(event_ids: list[UUID]) -> None:
                 if not cfg.get("enabled", True) or not cfg.get("auto_enrich_on_ingest", True):
                     return
                 n = await enrich_events(session, event_ids)
-                await session.commit()
+                await commit_session(session)
                 if n:
                     log.debug("enriched %s event(s) with threat matches", n)
         except Exception:

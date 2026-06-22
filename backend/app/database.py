@@ -1,13 +1,22 @@
+import asyncio
+import logging
 from collections.abc import AsyncGenerator
 from datetime import datetime
 from pathlib import Path
 
 from sqlalchemy import event, inspect, text
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Session
 
 from app.config import get_env_settings
 from app.time_utils import ensure_utc
+
+log = logging.getLogger("watchpot.database")
+
+SQLITE_BUSY_TIMEOUT_SEC = 30
+SQLITE_COMMIT_RETRIES = 5
+SQLITE_COMMIT_BASE_DELAY_SEC = 0.05
 
 
 class Base(DeclarativeBase):
@@ -31,11 +40,46 @@ def _ensure_sqlite_parent_dir(url: str) -> None:
     p.parent.mkdir(parents=True, exist_ok=True)
 
 
+def _is_sqlite_url(url: str) -> bool:
+    return url.split(":", 1)[0].endswith("sqlite")
+
+
 def _engine_args(url: str, debug: bool) -> dict:
     kwargs: dict = {"echo": debug, "pool_pre_ping": True}
-    if url.startswith("sqlite"):
-        kwargs["connect_args"] = {"check_same_thread": False}
+    if _is_sqlite_url(url):
+        kwargs["connect_args"] = {
+            "check_same_thread": False,
+            "timeout": SQLITE_BUSY_TIMEOUT_SEC,
+        }
     return kwargs
+
+
+def _register_sqlite_pragmas(eng) -> None:
+    @event.listens_for(eng.sync_engine, "connect")
+    def _on_sqlite_connect(dbapi_conn, _connection_record) -> None:
+        cursor = dbapi_conn.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA synchronous=NORMAL")
+        cursor.execute(f"PRAGMA busy_timeout={SQLITE_BUSY_TIMEOUT_SEC * 1000}")
+        cursor.close()
+
+
+async def commit_session(session: AsyncSession) -> None:
+    """Commit with brief retries when SQLite reports a transient lock."""
+    if not _is_sqlite_url(_env.database_url):
+        await session.commit()
+        return
+    delay = SQLITE_COMMIT_BASE_DELAY_SEC
+    for attempt in range(SQLITE_COMMIT_RETRIES):
+        try:
+            await session.commit()
+            return
+        except OperationalError as exc:
+            if "database is locked" not in str(exc).lower() or attempt + 1 >= SQLITE_COMMIT_RETRIES:
+                raise
+            log.debug("sqlite commit locked; retry %s/%s", attempt + 1, SQLITE_COMMIT_RETRIES)
+            await asyncio.sleep(delay)
+            delay = min(delay * 2, 1.0)
 
 
 _env = get_env_settings()
@@ -44,6 +88,8 @@ engine = create_async_engine(
     _env.database_url,
     **_engine_args(_env.database_url, _env.debug),
 )
+if _is_sqlite_url(_env.database_url):
+    _register_sqlite_pragmas(engine)
 async_session_factory = async_sessionmaker(
     engine,
     class_=AsyncSession,
@@ -70,7 +116,7 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with async_session_factory() as session:
         try:
             yield session
-            await session.commit()
+            await commit_session(session)
         except Exception:
             await session.rollback()
             raise
