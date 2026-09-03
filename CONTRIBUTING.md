@@ -22,8 +22,9 @@ Thank you for your interest in improving watchPot!
 npm run lint
 npm run build
 
-# Backend
+# Backend (needs Postgres or MySQL — start helper DB first)
 cd backend
+docker compose -f ../deploy/setup/docker-compose.postgres.yml up -d
 .venv/bin/pytest
 .venv/bin/python -m compileall app
 ```

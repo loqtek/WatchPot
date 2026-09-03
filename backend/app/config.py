@@ -19,7 +19,7 @@ class EnvSettings(BaseSettings):
 
     app_name: str = "watchPot API"
     debug: bool = False
-    database_url: str = "sqlite+aiosqlite:///./data/watchpot.db"
+    database_url: str = "postgresql+asyncpg://watchpot:watchpot@127.0.0.1:5433/watchpot"
     watchpot_api_role: str = Field(
         default="control",
         description="control = operator + agent APIs; agent = agent endpoints only",
@@ -32,15 +32,13 @@ class EnvSettings(BaseSettings):
     watchpot_auto_local_agent: bool | None = Field(
         default=None,
         validation_alias="WATCHPOT_AUTO_LOCAL_AGENT",
-        description="If set, overrides default (on for local_dev / SQLite dev). Set false to disable.",
+        description="If set, overrides default (on for local_dev). Set false to disable.",
     )
 
     def auto_local_agent_enabled(self) -> bool:
         if self.watchpot_auto_local_agent is not None:
             return self.watchpot_auto_local_agent
-        if self.watchpot_stack_mode == "local_dev":
-            return True
-        return self.database_url.split(":", 1)[0].endswith("sqlite")
+        return self.watchpot_stack_mode == "local_dev"
     expose_openapi: bool = Field(
         default=False,
         validation_alias="EXPOSE_OPENAPI",
@@ -49,12 +47,12 @@ class EnvSettings(BaseSettings):
     allow_loopback_cors: bool | None = Field(
         default=None,
         validation_alias="WATCHPOT_ALLOW_LOOPBACK_CORS",
-        description="Allow any localhost/127.0.0.1 origin. Default: on for local_dev/SQLite, off otherwise.",
+        description="Allow any localhost/127.0.0.1 origin. Default: on for local_dev, off otherwise.",
     )
     log_bootstrap_password: bool | None = Field(
         default=None,
         validation_alias="WATCHPOT_LOG_BOOTSTRAP_PASSWORD",
-        description="Log one-time admin password at startup. Default: on for local_dev/SQLite only.",
+        description="Log one-time admin password at startup. Default: on for local_dev only.",
     )
     metrics_token: str = Field(
         default="",
@@ -75,16 +73,12 @@ class EnvSettings(BaseSettings):
     def allow_loopback_cors_enabled(self) -> bool:
         if self.allow_loopback_cors is not None:
             return self.allow_loopback_cors
-        if self.watchpot_stack_mode == "local_dev":
-            return True
-        return self.database_url.split(":", 1)[0].endswith("sqlite")
+        return self.watchpot_stack_mode == "local_dev"
 
     def log_bootstrap_password_enabled(self) -> bool:
         if self.log_bootstrap_password is not None:
             return self.log_bootstrap_password
-        if self.watchpot_stack_mode == "local_dev":
-            return True
-        return self.database_url.split(":", 1)[0].endswith("sqlite")
+        return self.watchpot_stack_mode == "local_dev"
 
 
 @lru_cache

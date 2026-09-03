@@ -9,7 +9,11 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 # Set test env before app modules load settings/engine.
-os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///./data/pytest_watchpot.db")
+# Override with DATABASE_URL when pointing at a different Postgres/MySQL instance.
+os.environ.setdefault(
+    "DATABASE_URL",
+    "postgresql+asyncpg://watchpot:watchpot@127.0.0.1:5433/watchpot",
+)
 os.environ.setdefault("WATCHPOT_AUTO_LOCAL_AGENT", "false")
 os.environ.setdefault("WATCHPOT_ALLOW_LOOPBACK_CORS", "true")
 os.environ.setdefault("EXPOSE_OPENAPI", "true")

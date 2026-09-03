@@ -56,14 +56,18 @@ def _bucket_hour_expr(col: Any) -> Any:
     d = engine.sync_engine.dialect.name
     if d == "postgresql":
         return func.date_trunc("hour", col)
-    return func.strftime("%Y-%m-%d %H:00:00", col)
+    if d == "mysql":
+        return func.date_format(col, "%Y-%m-%d %H:00:00")
+    raise RuntimeError(f"Unsupported database dialect for time bucketing: {d}")
 
 
 def _bucket_day_expr(col: Any) -> Any:
     d = engine.sync_engine.dialect.name
     if d == "postgresql":
         return func.date_trunc("day", col)
-    return func.strftime("%Y-%m-%d %H:00:00", col)
+    if d == "mysql":
+        return func.date_format(col, "%Y-%m-%d")
+    raise RuntimeError(f"Unsupported database dialect for time bucketing: {d}")
 
 
 async def summary(

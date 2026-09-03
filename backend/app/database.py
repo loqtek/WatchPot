@@ -1,95 +1,50 @@
-import asyncio
-import logging
 from collections.abc import AsyncGenerator
 from datetime import datetime
-from pathlib import Path
 
-from sqlalchemy import event, inspect, text
-from sqlalchemy.exc import OperationalError
+from sqlalchemy import event, inspect
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Session
 
 from app.config import get_env_settings
 from app.time_utils import ensure_utc
 
-log = logging.getLogger("watchpot.database")
-
-SQLITE_BUSY_TIMEOUT_SEC = 30
-SQLITE_COMMIT_RETRIES = 5
-SQLITE_COMMIT_BASE_DELAY_SEC = 0.05
+_SUPPORTED_DIALECTS = ("postgresql", "mysql")
 
 
 class Base(DeclarativeBase):
     pass
 
 
-def _ensure_sqlite_parent_dir(url: str) -> None:
-    if "sqlite" not in url.split(":", 1)[0]:
+def _dialect_scheme(url: str) -> str:
+    return url.split(":", 1)[0].split("+", 1)[0].lower()
+
+
+def _assert_supported_database_url(url: str) -> None:
+    scheme = _dialect_scheme(url)
+    if scheme in _SUPPORTED_DIALECTS:
         return
-    no_q = url.split("?", 1)[0]
-    if no_q.startswith("sqlite+aiosqlite:////"):
-        path_part = no_q[len("sqlite+aiosqlite:////") :]
-        p = Path("/") / path_part
-    elif no_q.startswith("sqlite+aiosqlite:///"):
-        path_part = no_q[len("sqlite+aiosqlite:///") :]
-        p = Path(path_part)
-        if not p.is_absolute():
-            p = Path.cwd() / p
-    else:
-        return
-    p.parent.mkdir(parents=True, exist_ok=True)
-
-
-def _is_sqlite_url(url: str) -> bool:
-    return url.split(":", 1)[0].endswith("sqlite")
-
-
-def _engine_args(url: str, debug: bool) -> dict:
-    kwargs: dict = {"echo": debug, "pool_pre_ping": True}
-    if _is_sqlite_url(url):
-        kwargs["connect_args"] = {
-            "check_same_thread": False,
-            "timeout": SQLITE_BUSY_TIMEOUT_SEC,
-        }
-    return kwargs
-
-
-def _register_sqlite_pragmas(eng) -> None:
-    @event.listens_for(eng.sync_engine, "connect")
-    def _on_sqlite_connect(dbapi_conn, _connection_record) -> None:
-        cursor = dbapi_conn.cursor()
-        cursor.execute("PRAGMA journal_mode=WAL")
-        cursor.execute("PRAGMA synchronous=NORMAL")
-        cursor.execute(f"PRAGMA busy_timeout={SQLITE_BUSY_TIMEOUT_SEC * 1000}")
-        cursor.close()
+    if scheme == "sqlite":
+        raise RuntimeError(
+            "SQLite is no longer supported. Set DATABASE_URL to PostgreSQL "
+            "(postgresql+asyncpg://…) or MySQL (mysql+aiomysql://…)."
+        )
+    raise RuntimeError(
+        f"Unsupported DATABASE_URL scheme {scheme!r}. "
+        "Use postgresql+asyncpg://… or mysql+aiomysql://…"
+    )
 
 
 async def commit_session(session: AsyncSession) -> None:
-    """Commit with brief retries when SQLite reports a transient lock."""
-    if not _is_sqlite_url(_env.database_url):
-        await session.commit()
-        return
-    delay = SQLITE_COMMIT_BASE_DELAY_SEC
-    for attempt in range(SQLITE_COMMIT_RETRIES):
-        try:
-            await session.commit()
-            return
-        except OperationalError as exc:
-            if "database is locked" not in str(exc).lower() or attempt + 1 >= SQLITE_COMMIT_RETRIES:
-                raise
-            log.debug("sqlite commit locked; retry %s/%s", attempt + 1, SQLITE_COMMIT_RETRIES)
-            await asyncio.sleep(delay)
-            delay = min(delay * 2, 1.0)
+    await session.commit()
 
 
 _env = get_env_settings()
-_ensure_sqlite_parent_dir(_env.database_url)
+_assert_supported_database_url(_env.database_url)
 engine = create_async_engine(
     _env.database_url,
-    **_engine_args(_env.database_url, _env.debug),
+    echo=_env.debug,
+    pool_pre_ping=True,
 )
-if _is_sqlite_url(_env.database_url):
-    _register_sqlite_pragmas(engine)
 async_session_factory = async_sessionmaker(
     engine,
     class_=AsyncSession,
@@ -100,7 +55,7 @@ async_session_factory = async_sessionmaker(
 
 @event.listens_for(Session, "loaded_as_persistent")
 def _coerce_loaded_datetimes_to_utc(_session: Session, instance: object) -> None:
-    """SQLite stores datetimes without tzinfo; normalize on load before comparisons."""
+    """Normalize naive datetimes from drivers before comparisons."""
     mapper = inspect(instance.__class__, raiseerr=False)
     if mapper is None:
         return

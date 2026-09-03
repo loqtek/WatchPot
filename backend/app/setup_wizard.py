@@ -106,9 +106,6 @@ def prompt_choice(title: str, options: list[tuple[str, str]]) -> str:
 
 
 def build_database_url(db: str, mode: str) -> str:
-    if db == "sqlite":
-        (BACKEND_DIR / "data").mkdir(parents=True, exist_ok=True)
-        return "sqlite+aiosqlite:///./data/watchpot.db"
     if db == "postgres":
         if mode in ("full", "api_only"):
             return "postgresql+asyncpg://watchpot:watchpot@postgres:5432/watchpot"
@@ -220,7 +217,7 @@ def interactive() -> None:
             ("full", "Docker (recommended): Postgres + API + Web + Prometheus + Grafana"),
             ("api_only", "Docker: API + Postgres + metrics (no Web container)"),
             ("ui_only", "Docker: Web UI only (set remote API URL for browser → API calls)"),
-            ("local_dev", "Dev without image rebuilds: SQLite or helper DB + ./run + npm run dev"),
+            ("local_dev", "Dev without image rebuilds: helper Postgres/MySQL + ./run + npm run dev"),
         ],
     )
 
@@ -231,7 +228,6 @@ def interactive() -> None:
         db = prompt_choice(
             "Database backend:",
             [
-                ("sqlite", "SQLite (./backend/data/watchpot.db)"),
                 ("postgres", "PostgreSQL via Docker helper on 127.0.0.1:5433"),
                 ("mysql", "MySQL 8 via Docker helper on 127.0.0.1:3307"),
             ],
@@ -282,7 +278,7 @@ def interactive() -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="watchPot setup wizard")
     parser.add_argument("--non-interactive", action="store_true")
-    parser.add_argument("--db", choices=("sqlite", "postgres", "mysql"), default="sqlite")
+    parser.add_argument("--db", choices=("postgres", "mysql"), default="postgres")
     parser.add_argument(
         "--mode",
         choices=("full", "api_only", "ui_only", "local_dev"),
@@ -302,11 +298,12 @@ def main() -> None:
 
     if args.non_interactive:
         paths = [p.strip() for p in args.external_log_paths.split(",") if p.strip()] if args.external_log_paths else []
-        skip = args.skip_bootstrap or (
-            args.non_interactive and args.mode in ("full", "api_only") and args.db == "postgres"
-        )
+        db = args.db
+        if args.mode in ("full", "api_only"):
+            db = "postgres"
+        skip = args.skip_bootstrap or args.mode in ("full", "api_only")
         apply_configuration(
-            db=args.db,
+            db=db,
             mode=args.mode,
             paths_list=paths,
             start_docker=args.docker_db,

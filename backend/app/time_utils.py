@@ -1,4 +1,4 @@
-"""UTC clock and datetime normalization (SQLite returns naive datetimes)."""
+"""UTC clock and datetime normalization (some DB drivers return naive datetimes)."""
 
 from __future__ import annotations
 

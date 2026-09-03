@@ -1,6 +1,6 @@
 # watchPot control-plane stack
 #
-# Quick start (SQLite + HTTPS — default):
+# Quick start (PostgreSQL + HTTPS — default):
 #   cp .env.example .env   # set WATCHPOT_PUBLIC_HOST to your IP/hostname
 #   docker compose up -d --build
 #   docker compose logs api | grep -A4 watchPot   # one-time wpadmin password
@@ -17,20 +17,16 @@
 # credentials to agent/.env; the agent container waits for that file then connects.
 # Disable with WATCHPOT_AUTO_LOCAL_AGENT=false (and remove or stop the agent service).
 #
-# Fresh database (wipes SQLite + TLS certs):
+# Fresh database (wipes Postgres data + TLS certs):
 #   docker compose down -v
 #
 # Plain HTTP debugging: set WATCHPOT_AGENT_API_URL=http://api:6040/api and expose api/web ports
 # in docker-compose.override.yml (not the default — all traffic goes through the TLS proxy).
 #
-# ── Database options ──────────────────────────────────────────────────────────
-# Set DATABASE_URL in backend/.env and/or override on the `api` service below.
-#
-# 1) SQLite (default)
-#      DATABASE_URL=sqlite+aiosqlite:////app/data/watchpot.db
-#
-# 2) PostgreSQL (optional): docker compose --profile postgres up -d --build
-#      DATABASE_URL=postgresql+asyncpg://watchpot:watchpot@postgres:5432/watchpot
+# ── Database ──────────────────────────────────────────────────────────────────
+# PostgreSQL is required for the Docker stack (service hostname: postgres).
+# For local_dev with MySQL instead, use deploy/setup/docker-compose.mysql.yml and set:
+#      DATABASE_URL=mysql+aiomysql://watchpot:watchpot@127.0.0.1:3307/watchpot?charset=utf8mb4
 
 services:
   proxy:
@@ -62,7 +58,7 @@ services:
     env_file:
       - ./backend/.env
     environment:
-      DATABASE_URL: ${DATABASE_URL:-sqlite+aiosqlite:////app/data/watchpot.db}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://watchpot:watchpot@postgres:5432/watchpot}
       WATCHPOT_API_ROLE: ${WATCHPOT_API_ROLE:-control}
       WATCHPOT_STACK_MODE: ${WATCHPOT_STACK_MODE:-full}
       WATCHPOT_AUTO_LOCAL_AGENT: ${WATCHPOT_AUTO_LOCAL_AGENT:-true}
@@ -76,14 +72,12 @@ services:
       WATCHPOT_LOG_BOOTSTRAP_PASSWORD: ${WATCHPOT_LOG_BOOTSTRAP_PASSWORD:-true}
     volumes:
       - ./agent:/agent
-      - watchpot_sqlite:/app/data
       - watchpot_tls:/etc/watchpot/tls:ro
     expose:
       - "6040"
     depends_on:
       postgres:
         condition: service_healthy
-        required: false
     healthcheck:
       test:
         [
@@ -147,7 +141,6 @@ services:
         condition: service_healthy
 
   postgres:
-    profiles: [postgres]
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: watchpot
@@ -163,6 +156,5 @@ services:
 
 volumes:
   watchpot_tls:
-  watchpot_sqlite:
   agent_work:
   pgdata:

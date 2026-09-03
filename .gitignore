@@ -46,7 +46,7 @@ wheels/
 *.whl
 
 # -----------------------------------------------------------------------------
-# Local databases & API state (SQLite path from backend/.env.example)
+# Local API state (backup artifacts, etc.)
 # -----------------------------------------------------------------------------
 **/data/*.db
 **/data/*.db-*

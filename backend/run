@@ -38,10 +38,7 @@ auto_local_agent_enabled() {
       *) return 0 ;;
     esac
   fi
-  if [[ "${WATCHPOT_STACK_MODE:-full}" == "local_dev" ]]; then
-    return 0
-  fi
-  [[ "${DATABASE_URL:-}" == sqlite* ]]
+  [[ "${WATCHPOT_STACK_MODE:-full}" == "local_dev" ]]
 }
 
 if [[ ! -d "$VENV" ]]; then
@@ -80,6 +77,5 @@ if auto_local_agent_enabled; then
   fi
 fi
 
-# Only watch Python sources — default reload watches all of backend/ including data/*.db,
-# which retriggers the worker on every SQLite write (bootstrap, heartbeats, etc.).
+# Only watch Python sources — avoids reload noise from non-code files under backend/.
 exec "$UVICORN" app.main:app --reload --reload-dir "$ROOT/app" --host 0.0.0.0 --port 6040 "$@"

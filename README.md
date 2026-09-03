@@ -255,17 +255,21 @@ The pot should appear online within one heartbeat interval.
 
 For fast iteration without rebuilding Docker images.
 
-**Database**
+**Database** (Postgres or MySQL)
 
 ```bash
-docker compose up -d postgres
+# Postgres on 127.0.0.1:5433 (recommended)
+docker compose -f deploy/setup/docker-compose.postgres.yml up -d
+
+# Or MySQL on 127.0.0.1:3307
+# docker compose -f deploy/setup/docker-compose.mysql.yml up -d
 ```
 
-**Backend** (port `6040`, auto-starts a local agent in dev mode)
+**Backend** (port `6040`, auto-starts a local agent in `local_dev` mode)
 
 ```bash
 cd backend
-cp .env.example .env    # set DATABASE_URL
+cp .env.example .env    # set DATABASE_URL + WATCHPOT_STACK_MODE=local_dev
 ./run
 ```
 
@@ -285,7 +289,7 @@ cp env.example .env     # WATCHPOT_POT_ID + WATCHPOT_AGENT_TOKEN
 ./run
 ```
 
-SQLite quick path: `./setup --db sqlite --mode local_dev`
+Local-dev quick path: `./setup --db postgres --mode local_dev --docker-db`
 
 ---
 
@@ -298,7 +302,7 @@ SQLite quick path: `./setup --db sqlite --mode local_dev`
 
 | Variable | Description |
 |----------|-------------|
-| `DATABASE_URL` | Async SQLAlchemy URL (`postgresql+asyncpg://…` or `sqlite+aiosqlite://…`) |
+| `DATABASE_URL` | Async SQLAlchemy URL (`postgresql+asyncpg://…` or `mysql+aiomysql://…`) |
 | `WATCHPOT_AUTO_LOCAL_AGENT` | `false` disables auto local agent (default **on**) |
 | `WATCHPOT_CORS_ORIGINS` | Comma-separated browser origins (seeded into DB on first run) |
 
@@ -330,7 +334,7 @@ On the Docker stack, pot credentials are written automatically to `agent/.env`.
 ```bash
 ./setup                              # interactive (Docker-first)
 ./setup --non-interactive --db postgres --mode full
-./setup --non-interactive --db sqlite --mode local_dev
+./setup --non-interactive --db postgres --mode local_dev --docker-db
 ./setup --bare-python                # force local Python instead of Docker
 ```
 
