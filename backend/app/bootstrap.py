@@ -115,6 +115,7 @@ async def ensure_admin_user(session: AsyncSession) -> None:
         username=DEFAULT_ADMIN_USERNAME_HINT,
         hashed_password=hash_secret(password),
         is_active=True,
+        is_admin=True,
     )
     session.add(user)
     await session.flush()

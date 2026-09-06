@@ -22,10 +22,14 @@ export function resolveControlPlaneApiUrl(hostInput: string, fallback?: string):
 }
 
 /** Bootstrap install script over HTTP; agent runtime still uses HTTPS WATCHPOT_API_URL. */
-export function getAgentInstallScriptUrl(apiUrl?: string): string {
+export function getAgentInstallScriptUrl(apiUrl?: string, enrollmentToken?: string | null): string {
   const base = (apiUrl ?? getApiBase()).replace(/\/$/, "");
   const httpBase = base.replace(/^https:/i, "http:");
-  return `${httpBase}/public/agent/install.sh`;
+  const url = `${httpBase}/public/agent/install.sh`;
+  if (enrollmentToken) {
+    return `${url}?enrollment=${encodeURIComponent(enrollmentToken)}`;
+  }
+  return url;
 }
 
 /** One-liner to run on the honeypot host (requires Docker). */
@@ -33,16 +37,21 @@ export function buildAgentInstallCommand(
   potId: string,
   agentToken: string,
   apiUrl?: string,
+  enrollmentToken?: string | null,
 ): string {
   const resolved = (apiUrl ?? getApiBase()).replace(/\/$/, "");
-  const scriptUrl = getAgentInstallScriptUrl(resolved);
-  return [
+  const scriptUrl = getAgentInstallScriptUrl(resolved, enrollmentToken);
+  const lines = [
     `curl -fsS ${shellQuote(scriptUrl)} | \\`,
     `  WATCHPOT_API_URL=${shellQuote(resolved)} \\`,
     `  WATCHPOT_POT_ID=${shellQuote(potId)} \\`,
     `  WATCHPOT_AGENT_TOKEN=${shellQuote(agentToken)} \\`,
-    `  bash`,
-  ].join("\n");
+  ];
+  if (enrollmentToken) {
+    lines.push(`  WATCHPOT_ENROLLMENT_TOKEN=${shellQuote(enrollmentToken)} \\`);
+  }
+  lines.push(`  bash`);
+  return lines.join("\n");
 }
 
 /** Optional follow-up to verify the agent container. */

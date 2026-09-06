@@ -2,10 +2,11 @@
 # watchPot agent installer — enrolls this host as a pot and starts the agent container.
 #
 # Usage (from the watchPot UI after creating a pot):
-#   curl -fsSL "http://control-plane.example/api/public/agent/install.sh" | \
+#   curl -fsSL "http://control-plane.example/api/public/agent/install.sh?enrollment=<token>" | \
 #     WATCHPOT_API_URL="https://control-plane.example/api" \
 #     WATCHPOT_POT_ID="<uuid>" \
 #     WATCHPOT_AGENT_TOKEN="wp_…" \
+#     WATCHPOT_ENROLLMENT_TOKEN="<token>" \
 #     bash
 #
 # The install script is fetched over HTTP (port 80) so curl works before the watchPot CA
@@ -18,6 +19,7 @@ set -euo pipefail
 : "${WATCHPOT_AGENT_TOKEN:?Set WATCHPOT_AGENT_TOKEN}"
 
 WATCHPOT_API_URL="${WATCHPOT_API_URL%/}"
+WATCHPOT_ENROLLMENT_TOKEN="${WATCHPOT_ENROLLMENT_TOKEN:-}"
 IMAGE="${WATCHPOT_AGENT_IMAGE:-watchpot-agent:latest}"
 CONTAINER="${WATCHPOT_AGENT_CONTAINER:-watchpot-agent}"
 WORK_VOL="${WATCHPOT_AGENT_VOLUME:-watchpot-agent-data}"
@@ -33,6 +35,12 @@ if ! docker info >/dev/null 2>&1; then
   echo "After running you might need to logout and log back in for it to take affect." >&2
   exit 1
 fi
+
+enrollment_query() {
+  if [ -n "$WATCHPOT_ENROLLMENT_TOKEN" ]; then
+    printf '%s' "?enrollment=${WATCHPOT_ENROLLMENT_TOKEN}"
+  fi
+}
 
 http_api_url() {
   local base="${WATCHPOT_API_URL%/}"
@@ -64,8 +72,9 @@ bootstrap_ca() {
   http_base="$(http_api_url)"
   mkdir -p "$(dirname "$CA_FILE")"
   echo "→ Fetching control-plane CA from ${http_base}/public/agent/ca.crt (HTTP, no redirect)…"
-  if ! curl_http "${http_base}/public/agent/ca.crt" -o "$CA_FILE"; then
+  if ! curl_http "${http_base}/public/agent/ca.crt$(enrollment_query)" -o "$CA_FILE"; then
     echo "Failed to download CA over HTTP. Common causes:" >&2
+    echo "  • Missing enrollment token (copy the full install command from the watchPot UI)" >&2
     echo "  • Control-plane proxy not updated (needs port-80 exceptions for /api/public/agent/*)" >&2
     echo "  • Port 80 redirects to HTTPS — recreate proxy: docker compose up -d --force-recreate proxy" >&2
     echo "  • TLS not initialized yet — ensure proxy is running on the control plane" >&2
@@ -114,14 +123,23 @@ is_ipv4() {
 curl_api() {
   local url="$1"
   shift
+  local qs="" hdr=()
+  if [ -n "$WATCHPOT_ENROLLMENT_TOKEN" ]; then
+    case "$url" in
+      *\?*) qs="&enrollment=${WATCHPOT_ENROLLMENT_TOKEN}" ;;
+      *) qs="?enrollment=${WATCHPOT_ENROLLMENT_TOKEN}" ;;
+    esac
+    hdr=(-H "X-WatchPot-Enrollment: ${WATCHPOT_ENROLLMENT_TOKEN}")
+  fi
+  url="${url}${qs}"
   local host port
   read -r host port < <(api_host_port "$url")
   if is_ipv4 "$host"; then
     local resolved="${url//$host/localhost}"
-    curl -fsS --cacert "$CA_FILE" --resolve "localhost:${port}:${host}" "$resolved" "$@"
+    curl -fsS --cacert "$CA_FILE" --resolve "localhost:${port}:${host}" "${hdr[@]}" "$resolved" "$@"
     return
   fi
-  curl -fsS --cacert "$CA_FILE" "$url" "$@"
+  curl -fsS --cacert "$CA_FILE" "${hdr[@]}" "$url" "$@"
 }
 
 if ! command -v curl >/dev/null 2>&1; then

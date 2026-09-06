@@ -12,6 +12,7 @@ from app.integrations.senders.grafana_alerting import send_grafana_alerting
 from app.integrations.senders.loki import send_loki
 from app.integrations.senders.wazuh import send_wazuh
 from app.integrations.senders.zabbix import send_zabbix
+from app.ssrf import UnsafeTargetError, assert_safe_integration_config
 
 log = logging.getLogger("watchpot.integrations")
 
@@ -23,6 +24,10 @@ async def forward_to_integration(
 ) -> tuple[bool, str]:
     cfg = integration.config
     provider = integration.provider
+    try:
+        assert_safe_integration_config(provider, cfg)
+    except UnsafeTargetError as e:
+        return False, str(e)
     if provider == "grafana_loki":
         return await send_loki(client, event, cfg)
     if provider == "grafana_alerting":
@@ -39,7 +44,7 @@ async def forward_event_to_all(event: dict[str, Any]) -> list[dict[str, str]]:
     doc = get_integrations()
     results: list[dict[str, str]] = []
 
-    async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+    async with httpx.AsyncClient(timeout=15.0, follow_redirects=False) as client:
         for integration in doc.integrations:
             if not integration.enabled:
                 continue

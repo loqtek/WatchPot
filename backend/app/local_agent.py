@@ -21,7 +21,7 @@ from app.security import generate_agent_key, hash_secret, verify_secret
 
 log = logging.getLogger("watchpot.local_agent")
 
-AUTO_LOCAL_POT_NAME = "local-dev"
+AUTO_LOCAL_POT_NAME = "local-pot"
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -180,7 +180,7 @@ async def reconcile_auto_local_agent(
     user_agent: str | None = None,
     reason: str = "startup",
 ) -> LocalAgentResult | None:
-    """Ensure local-dev pot exists and agent/.env has a matching key pair."""
+    """Ensure local-pot pot exists and agent/.env has a matching key pair."""
     if not auto_local_agent_enabled():
         log.debug("Auto local agent disabled (WATCHPOT_AUTO_LOCAL_AGENT)")
         return None

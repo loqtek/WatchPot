@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
-import { apiFetch, setToken } from "@/lib/api";
+import { apiFetch, clearClientSession } from "@/lib/api";
 import type { UserOut } from "@/lib/types";
 
 type AuthContextValue = {
@@ -34,7 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(u);
     } catch {
       setUser(null);
-      setToken(null);
+      clearClientSession();
       router.replace("/login");
     } finally {
       setLoading(false);
@@ -46,7 +46,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [refetch]);
 
   const logout = useCallback(() => {
-    setToken(null);
+    void apiFetch("/auth/logout", { method: "POST" }).catch(() => undefined);
+    clearClientSession();
     setUser(null);
     router.push("/login");
   }, [router]);

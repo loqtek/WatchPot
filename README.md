@@ -347,7 +347,7 @@ Optional root `.env`: copy [`.env.example`](.env.example) for `NEXT_PUBLIC_API_U
 ## Security
 
 - **Production / internet-facing:** see [`SECURITY.md`](SECURITY.md) — TLS, `EXPOSE_OPENAPI=false`, lock down CORS, set `WATCHPOT_METRICS_TOKEN`
-- **Secrets:** rotate bootstrap admin password, JWT secret, and agent tokens after first login; never commit `.env` files
+- **Secrets:** rotate bootstrap admin password, JWT secret, and agent tokens after first login; never commit `.env` files. Browser sessions use HttpOnly cookies (not localStorage).
 - **Agents:** treat tokens like passwords; use TLS to the API
 - **Honeypot hosts:** mounting `docker.sock` is powerful — only on hosts you accept as honeypot infrastructure
 

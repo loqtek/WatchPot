@@ -69,6 +69,46 @@ class EnvSettings(BaseSettings):
         validation_alias="WATCHPOT_ENABLE_TEST_ENDPOINTS",
         description="Enable dev-only operator endpoints (e.g. simulate heartbeat).",
     )
+    trust_proxy: bool = Field(
+        default=True,
+        validation_alias="WATCHPOT_TRUST_PROXY",
+        description="Trust X-Forwarded-For / X-Forwarded-Proto from the TLS proxy.",
+    )
+    auth_login_rate_limit: int = Field(
+        default=8,
+        validation_alias="WATCHPOT_AUTH_LOGIN_RATE_LIMIT",
+        description="Max login attempts per IP per window.",
+    )
+    auth_register_rate_limit: int = Field(
+        default=5,
+        validation_alias="WATCHPOT_AUTH_REGISTER_RATE_LIMIT",
+        description="Max register attempts per IP per window.",
+    )
+    auth_rate_window_seconds: int = Field(
+        default=900,
+        validation_alias="WATCHPOT_AUTH_RATE_WINDOW_SECONDS",
+        description="Sliding window for login/register rate limits.",
+    )
+    public_agent_open: bool | None = Field(
+        default=None,
+        validation_alias="WATCHPOT_PUBLIC_AGENT_OPEN",
+        description="If true, /api/public/agent/* needs no enrollment token. Default: on for local_dev only.",
+    )
+    agent_enrollment_token: str = Field(
+        default="",
+        validation_alias="WATCHPOT_AGENT_ENROLLMENT_TOKEN",
+        description="Optional static enrollment token accepted in addition to short-lived JWTs.",
+    )
+    agent_enrollment_ttl_minutes: int = Field(
+        default=45,
+        validation_alias="WATCHPOT_AGENT_ENROLLMENT_TTL_MINUTES",
+        description="Lifetime of minted enrollment JWTs.",
+    )
+    integration_allow_loopback: bool | None = Field(
+        default=None,
+        validation_alias="WATCHPOT_INTEGRATION_ALLOW_LOOPBACK",
+        description="Allow integration URLs that resolve to loopback. Default: on for local_dev only.",
+    )
 
     def allow_loopback_cors_enabled(self) -> bool:
         if self.allow_loopback_cors is not None:
@@ -78,6 +118,16 @@ class EnvSettings(BaseSettings):
     def log_bootstrap_password_enabled(self) -> bool:
         if self.log_bootstrap_password is not None:
             return self.log_bootstrap_password
+        return self.watchpot_stack_mode == "local_dev"
+
+    def public_agent_open_enabled(self) -> bool:
+        if self.public_agent_open is not None:
+            return self.public_agent_open
+        return self.watchpot_stack_mode == "local_dev"
+
+    def integration_allow_loopback_enabled(self) -> bool:
+        if self.integration_allow_loopback is not None:
+            return self.integration_allow_loopback
         return self.watchpot_stack_mode == "local_dev"
 
 

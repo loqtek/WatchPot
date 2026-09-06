@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { AuthGateScript } from "@/components/auth/auth-gate-script";
 import { ToastProvider } from "@/components/providers/toast-provider";
 import "./globals.css";
 
@@ -33,6 +34,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col bg-zinc-950 text-zinc-100">
+        <AuthGateScript />
         {children}
         <ToastProvider />
       </body>

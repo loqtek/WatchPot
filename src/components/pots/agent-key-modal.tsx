@@ -8,7 +8,7 @@ import {
   isLocalhostApiUrl,
   resolveControlPlaneApiUrl,
 } from "@/lib/agent-install";
-import { getApiBase } from "@/lib/api";
+import { apiFetch, getApiBase } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,14 +20,16 @@ type AgentKeyModalProps = {
   agentKey: string;
   potId: string;
   potName?: string;
+  enrollmentToken?: string | null;
   onClose: () => void;
 };
 
-export function AgentKeyModal({ open, agentKey, potId, potName, onClose }: AgentKeyModalProps) {
+export function AgentKeyModal({ open, agentKey, potId, potName, enrollmentToken, onClose }: AgentKeyModalProps) {
   const [closeStage, setCloseStage] = useState<0 | 1 | 2>(0);
   const [prevOpenKey, setPrevOpenKey] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [hostInput, setHostInput] = useState("");
+  const [mintedEnrollment, setMintedEnrollment] = useState<string | null>(enrollmentToken ?? null);
   const hostInputRef = useRef<HTMLInputElement>(null);
 
   const defaultApiUrl = getApiBase().replace(/\/$/, "");
@@ -37,8 +39,8 @@ export function AgentKeyModal({ open, agentKey, potId, potName, onClose }: Agent
   );
 
   const installCommand = useMemo(
-    () => buildAgentInstallCommand(potId, agentKey, apiUrl),
-    [potId, agentKey, apiUrl],
+    () => buildAgentInstallCommand(potId, agentKey, apiUrl, mintedEnrollment),
+    [potId, agentKey, apiUrl, mintedEnrollment],
   );
   const logsCommand = useMemo(() => buildAgentLogsCommand(), []);
   const localhostApi = isLocalhostApiUrl(defaultApiUrl) && !hostInput.trim();
@@ -49,6 +51,7 @@ export function AgentKeyModal({ open, agentKey, potId, potName, onClose }: Agent
     setCloseStage(0);
     setShowAdvanced(false);
     setHostInput("");
+    setMintedEnrollment(enrollmentToken ?? null);
   } else if (!open && prevOpenKey !== "") {
     setPrevOpenKey("");
   }
@@ -61,6 +64,19 @@ export function AgentKeyModal({ open, agentKey, potId, potName, onClose }: Agent
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
+
+  useEffect(() => {
+    if (!open || !potId) return;
+    if (enrollmentToken) {
+      setMintedEnrollment(enrollmentToken);
+      return;
+    }
+    void apiFetch<{ required: boolean; token: string | null }>(`/pots/${potId}/enrollment-token`, {
+      method: "POST",
+    })
+      .then((r) => setMintedEnrollment(r.token))
+      .catch(() => setMintedEnrollment(null));
+  }, [open, potId, enrollmentToken, openKey]);
 
   useEffect(() => {
     if (!open || !localhostApi) return;
@@ -113,8 +129,9 @@ export function AgentKeyModal({ open, agentKey, potId, potName, onClose }: Agent
               </p>
             ) : null}
             <p className="mt-2 text-sm text-zinc-400">
-              Requires Docker on the host. Fetches the install script over HTTP, bootstraps the watchPot CA, then
-              connects over HTTPS. Your pot should show as live within ~30 seconds.
+              Requires Docker on the host. Fetches the install script over HTTP (with a short-lived enrollment token when
+              required), bootstraps the watchPot CA, then connects over HTTPS. Your pot should show as live within ~30
+              seconds.
             </p>
             {localhostApi ? (
               <p className="mt-2 rounded-lg border border-amber-500/30 bg-amber-950/25 px-3 py-2 text-xs leading-relaxed text-amber-100/90">
@@ -173,7 +190,7 @@ export function AgentKeyModal({ open, agentKey, potId, potName, onClose }: Agent
             <pre className="overflow-x-auto rounded-lg border border-zinc-800 bg-zinc-950/90 p-3 font-mono text-[11px] leading-relaxed text-zinc-300 whitespace-pre-wrap break-all">
               {`export WATCHPOT_API_URL="${apiUrl}"
 export WATCHPOT_POT_ID="${potId}"
-export WATCHPOT_AGENT_TOKEN="${agentKey}"
+export WATCHPOT_AGENT_TOKEN="${agentKey}"${mintedEnrollment ? `\nexport WATCHPOT_ENROLLMENT_TOKEN="${mintedEnrollment}"` : ""}
 export WATCHPOT_WORK_DIR="/var/lib/watchpot"`}
             </pre>
           ) : null}

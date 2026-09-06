@@ -104,8 +104,9 @@ export default function ToolsPage() {
               Session
             </CardTitle>
             <CardDescription>
-              Your browser talks to <code className="text-zinc-400">NEXT_PUBLIC_API_URL</code> at build time for dev.
-              Ensure it matches where the API is reachable from your machine.
+              Your browser authenticates with an HttpOnly session cookie and a CSRF header. Use the same-origin
+              <code className="text-zinc-400"> /api </code> path in Docker, or match
+              <code className="text-zinc-400"> NEXT_PUBLIC_API_URL</code> in local dev.
             </CardDescription>
           </CardHeader>
           <CardContent>

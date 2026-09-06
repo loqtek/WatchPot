@@ -29,6 +29,7 @@ from app.schemas.integrations import (
     IntegrationsOut,
     IntegrationsUpdate,
 )
+from app.ssrf import UnsafeTargetError, assert_safe_integration_config
 from app.settings_keys import SIEM_INTEGRATIONS
 
 import httpx
@@ -74,6 +75,11 @@ async def update_integrations(
     merged: list[IntegrationConfig] = []
     for raw in body.integrations:
         inc = IntegrationConfig.model_validate(raw.model_dump())
+        if inc.enabled:
+            try:
+                assert_safe_integration_config(inc.provider, inc.config)
+            except UnsafeTargetError as e:
+                raise HTTPException(status_code=400, detail=str(e)) from e
         merged.append(merge_secrets(inc, by_id.get(inc.id)))
 
     doc = IntegrationsDocument(version=body.version, integrations=merged)
@@ -130,8 +136,12 @@ async def test_integration(
         )
 
     target = _apply_test_config(target, body)
+    try:
+        assert_safe_integration_config(target.provider, target.config)
+    except UnsafeTargetError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
-    async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+    async with httpx.AsyncClient(timeout=15.0, follow_redirects=False) as client:
         ok, msg = await forward_to_integration(client, target, TEST_EVENT)
 
     return IntegrationTestOut(

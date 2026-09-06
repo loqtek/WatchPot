@@ -3,11 +3,13 @@ export type UserOut = {
   email: string;
   username: string | null;
   is_active: boolean;
+  is_admin: boolean;
   timezone: string;
 };
 
 export type UserAdmin = UserOut & {
   created_at: string;
+  is_admin?: boolean;
 };
 
 export type Pot = {
@@ -184,6 +186,7 @@ export type OperatorSettings = {
   jwt_algorithm: string;
   /** Pots with heartbeats older than this many minutes are shown as offline. */
   heartbeat_stale_minutes: number;
+  public_agent_enrollment_required: boolean;
 };
 
 export type EventRow = {

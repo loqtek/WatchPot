@@ -20,6 +20,13 @@ async def _count_active_users(db: AsyncSession) -> int:
     return int(result.scalar_one())
 
 
+async def _count_active_admins(db: AsyncSession) -> int:
+    result = await db.execute(
+        select(func.count()).select_from(User).where(User.is_active.is_(True), User.is_admin.is_(True))
+    )
+    return int(result.scalar_one())
+
+
 async def _get_user_or_404(db: AsyncSession, user_id: UUID) -> User:
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
@@ -55,6 +62,7 @@ async def create_user(
         email=body.email,
         username=body.username,
         hashed_password=hash_secret(body.password),
+        is_admin=body.is_admin,
     )
     db.add(user)
     await db.flush()
@@ -88,6 +96,15 @@ async def update_user(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Cannot deactivate the only active user",
             )
+    if body.is_admin is False and user.id == actor.id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot remove your own admin access")
+    if body.is_active is False and user.is_admin and user.is_active:
+        active_admins = await _count_active_admins(db)
+        if active_admins <= 1:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot deactivate the only active admin",
+            )
     if body.email is not None and body.email != user.email:
         taken = await db.execute(select(User).where(User.email == body.email, User.id != user.id))
         if taken.scalar_one_or_none():
@@ -103,6 +120,15 @@ async def update_user(
         user.username = body.username
     if body.is_active is not None:
         user.is_active = body.is_active
+    if body.is_admin is not None and body.is_admin != user.is_admin:
+        if user.is_admin and not body.is_admin:
+            active_admins = await _count_active_admins(db)
+            if active_admins <= 1:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Cannot remove the only active admin",
+                )
+        user.is_admin = body.is_admin
     await write_audit(
         db,
         action="user.update",

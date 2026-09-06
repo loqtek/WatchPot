@@ -100,6 +100,14 @@ export function AccessPanel({ settings, onUpdated }: Props) {
                 Pots without a heartbeat within this window show as offline in the UI.
               </p>
             </div>
+            <p className="text-xs text-zinc-500">
+              Agent install assets at <code className="text-zinc-400">/api/public/agent/*</code>{" "}
+              {settings.public_agent_enrollment_required ? (
+                <>require a short-lived enrollment token (minted when you create or rotate a pot).</>
+              ) : (
+                <>are open (lab mode). Set <code className="text-zinc-400">WATCHPOT_PUBLIC_AGENT_OPEN=false</code> in production.</>
+              )}
+            </p>
             <Button type="submit" size="sm" disabled={saving || !dirty}>
               {saving ? (
                 <>

@@ -1,22 +1,29 @@
 "use client";
 
 import { startTransition, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/shell/app-shell";
 import { AuthProvider } from "@/contexts/auth-context";
-import { getToken } from "@/lib/api";
+import { probeSession } from "@/lib/api";
 
 export default function ShellLayout({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    if (!getToken()) {
-      router.replace("/login");
-      return;
-    }
-    startTransition(() => setReady(true));
-  }, [router]);
+    let cancelled = false;
+
+    void probeSession().then((ok) => {
+      if (cancelled) return;
+      if (!ok) {
+        window.location.replace("/login");
+        return;
+      }
+      startTransition(() => setReady(true));
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   if (!ready) {
     return (

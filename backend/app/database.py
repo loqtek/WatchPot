@@ -101,6 +101,8 @@ def _apply_runtime_migrations(sync_conn) -> None:
         if "username" not in cols:
             sync_conn.execute(text("ALTER TABLE users ADD COLUMN username VARCHAR(64)"))
             sync_conn.execute(text("CREATE UNIQUE INDEX ix_users_username ON users (username)"))
+        if "is_admin" not in cols:
+            sync_conn.execute(text("ALTER TABLE users ADD COLUMN is_admin BOOLEAN NOT NULL DEFAULT 1"))
         if "timezone" not in cols:
             sync_conn.execute(
                 text(

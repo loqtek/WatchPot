@@ -51,7 +51,7 @@ class DynamicCORSMiddleware(BaseHTTPMiddleware):
                         "Access-Control-Allow-Origin": origin,
                         "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
                         "Access-Control-Allow-Headers": acrh
-                        or "authorization,content-type,x-watchpot-pot-id,x-watchpot-node-id",
+                        or "authorization,content-type,x-csrf-token,x-watchpot-enrollment,x-watchpot-pot-id,x-watchpot-node-id",
                         "Access-Control-Allow-Credentials": "true",
                         "Access-Control-Max-Age": "600",
                     },

@@ -9,6 +9,7 @@ class UserAdminOut(BaseModel):
     email: str
     username: str | None
     is_active: bool
+    is_admin: bool
     timezone: str
     created_at: datetime
 
@@ -23,6 +24,7 @@ class AdminUserCreate(BaseModel):
         pattern=r"^[a-zA-Z0-9._-]+$",
     )
     password: str = Field(min_length=8)
+    is_admin: bool = False
 
     @field_validator("username", mode="before")
     @classmethod
@@ -40,6 +42,7 @@ class UserUpdate(BaseModel):
         pattern=r"^[a-zA-Z0-9._-]+$",
     )
     is_active: bool | None = None
+    is_admin: bool | None = None
 
     @field_validator("username", mode="before")
     @classmethod

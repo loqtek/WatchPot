@@ -13,13 +13,25 @@ from app.deps import get_current_user
 from app.models.pot import Pot
 from app.models.stack import Stack
 from app.models.user import User
+from app.enrollment import create_enrollment_token, enrollment_ttl_minutes, public_agent_open
 from app.event_logging import CHANNEL_CONTROL, SOURCE_CONTROL, emit_event
-from app.schemas.pot import PotCreate, PotOut, PotUpdate, PotWithKey, build_pot_out
+from app.schemas.pot import EnrollmentTokenOut, PotCreate, PotOut, PotUpdate, PotWithKey, build_pot_out
 from app.schemas.pot_ops import PotDeleteOut
 from app.security import generate_agent_key, hash_secret
 from app.services.pot_teardown import pot_agent_online, queue_pot_teardown, wait_for_commands
 
 router = APIRouter(prefix="/pots", tags=["pots"])
+
+
+def _with_enrollment(pot_out: PotOut, agent_key: str) -> PotWithKey:
+    required = not public_agent_open()
+    token = create_enrollment_token(pot_id=pot_out.id) if required else None
+    return PotWithKey(
+        **pot_out.model_dump(),
+        agent_key=agent_key,
+        enrollment_token=token,
+        enrollment_required=required,
+    )
 
 
 @router.get("", response_model=list[PotOut])
@@ -66,8 +78,7 @@ async def create_pot(
         payload={"name": body.name},
     )
     await db.refresh(pot)
-    base = build_pot_out(pot)
-    return PotWithKey(**base.model_dump(), agent_key=agent_key)
+    return _with_enrollment(build_pot_out(pot), agent_key)
 
 
 @router.get("/{pot_id}", response_model=PotOut)
@@ -155,7 +166,26 @@ async def rotate_agent_key(
         channel=CHANNEL_CONTROL,
         payload={"name": pot.name},
     )
-    return PotWithKey(**build_pot_out(pot).model_dump(), agent_key=agent_key)
+    return _with_enrollment(build_pot_out(pot), agent_key)
+
+
+@router.post("/{pot_id}/enrollment-token", response_model=EnrollmentTokenOut)
+async def mint_enrollment_token(
+    pot_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: Annotated[User, Depends(get_current_user)],
+) -> EnrollmentTokenOut:
+    result = await db.execute(select(Pot).where(Pot.id == pot_id))
+    pot = result.scalar_one_or_none()
+    if pot is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pot not found")
+    if public_agent_open():
+        return EnrollmentTokenOut(required=False, token=None, expires_in_seconds=0)
+    return EnrollmentTokenOut(
+        required=True,
+        token=create_enrollment_token(pot_id=pot.id),
+        expires_in_seconds=enrollment_ttl_minutes() * 60,
+    )
 
 
 @router.delete("/{pot_id}", response_model=PotDeleteOut)

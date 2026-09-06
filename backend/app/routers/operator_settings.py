@@ -7,6 +7,7 @@ from app.audit_service import write_audit
 from app.database import get_db
 from app.deps import get_current_user
 from app.models.user import User
+from app.enrollment import public_agent_open
 from app.runtime_config import (
     get_access_token_expire_minutes,
     get_cors_origins,
@@ -33,6 +34,7 @@ def _settings_out() -> OperatorSettingsOut:
         external_log_paths=get_external_log_paths(),
         jwt_algorithm=get_jwt_algorithm(),
         heartbeat_stale_minutes=get_heartbeat_stale_minutes(),
+        public_agent_enrollment_required=not public_agent_open(),
     )
 
 

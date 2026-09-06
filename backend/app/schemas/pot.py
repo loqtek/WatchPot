@@ -52,3 +52,11 @@ class PotWithKey(PotOut):
     """Returned once at registration — store agent key securely."""
 
     agent_key: str
+    enrollment_token: str | None = None
+    enrollment_required: bool = False
+
+
+class EnrollmentTokenOut(BaseModel):
+    required: bool
+    token: str | None = None
+    expires_in_seconds: int = 0

@@ -17,7 +17,7 @@ from app.models.event import Event
 from app.models.pot import Pot
 from app.models.pot_command import PotCommand
 from app.services.backup_artifacts import refresh_job_storage_location
-from app.services.backup_store import server_artifact_path, write_verified_upload
+from app.services.backup_store import server_artifact_path, write_verified_stream
 from app.models.stack import Stack, StackRevision
 from app.schemas.agent import AgentDesiredStack, AgentEventBatchIn, AgentHeartbeatIn
 from app.schemas.pot_ops import AgentCommandComplete, PotCommandOut
@@ -181,19 +181,33 @@ async def upload_backup_artifact(
     if artifact is None:
         raise HTTPException(status_code=404, detail="Backup artifact not found")
 
-    data = await file.read()
     max_bytes = get_env_settings().max_backup_upload_bytes
-    if len(data) > max_bytes:
-        raise HTTPException(
-            status_code=413,
-            detail=f"Upload exceeds maximum size ({max_bytes} bytes)",
-        )
-    if not data:
-        raise HTTPException(status_code=400, detail="Empty upload")
-
     filename = file.filename or Path(artifact.agent_path or "backup.tar").name
     dest = server_artifact_path(pot.id, job_id, filename)
-    ok, msg = write_verified_upload(dest, data, expected_sha)
+    size_bytes = 0
+
+    async def iter_chunks():
+        nonlocal size_bytes
+        while True:
+            chunk = await file.read(1024 * 1024)
+            if not chunk:
+                break
+            size_bytes += len(chunk)
+            if size_bytes > max_bytes:
+                dest.unlink(missing_ok=True)
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"Upload exceeds maximum size ({max_bytes} bytes)",
+                )
+            yield chunk
+
+    try:
+        ok, msg = await write_verified_stream(dest, iter_chunks(), expected_sha)
+    except HTTPException:
+        raise
+    if size_bytes == 0:
+        dest.unlink(missing_ok=True)
+        raise HTTPException(status_code=400, detail="Empty upload")
     if not ok:
         raise HTTPException(status_code=400, detail=msg)
 
@@ -201,7 +215,7 @@ async def upload_backup_artifact(
     artifact.transfer_sha256 = msg
     artifact.transfer_verified_at = datetime.now(timezone.utc)
     artifact.storage_location = "server"
-    artifact.size_bytes = len(data)
+    artifact.size_bytes = size_bytes
     job.server_artifact_path = str(dest)
     job.ingest_status = "verified"
     await refresh_job_storage_location(db, job)
@@ -211,6 +225,6 @@ async def upload_backup_artifact(
         "artifact_id": str(artifact.id),
         "server_path": str(dest),
         "sha256": msg,
-        "size_bytes": len(data),
+        "size_bytes": size_bytes,
         "storage_location": "server",
     }

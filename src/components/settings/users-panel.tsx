@@ -87,6 +87,7 @@ export function UsersPanel({ currentUserId }: Props) {
           email,
           username: username.trim() || null,
           password,
+          is_admin: true,
         },
       });
       setEmail("");
@@ -277,9 +278,12 @@ export function UsersPanel({ currentUserId }: Props) {
                             </div>
                           </Td>
                           <Td>
-                            <Badge tone={u.is_active ? "success" : "default"}>
-                              {u.is_active ? "Active" : "Inactive"}
-                            </Badge>
+                            <div className="flex flex-wrap gap-1">
+                              <Badge tone={u.is_active ? "success" : "default"}>
+                                {u.is_active ? "Active" : "Inactive"}
+                              </Badge>
+                              {u.is_admin ? <Badge tone="info">Admin</Badge> : null}
+                            </div>
                           </Td>
                           <Td mono className="whitespace-nowrap text-zinc-500">
                             {formatDate(u.created_at)}

@@ -61,11 +61,11 @@ def write_verified_upload(dest: Path, data: bytes, expected_sha256: str) -> tupl
     return True, digest
 
 
-def write_verified_stream(dest: Path, chunks: list[bytes], expected_sha256: str) -> tuple[bool, str]:
+async def write_verified_stream(dest: Path, chunks, expected_sha256: str) -> tuple[bool, str]:
     h = hashlib.sha256()
     dest.parent.mkdir(parents=True, exist_ok=True)
     with dest.open("wb") as f:
-        for chunk in chunks:
+        async for chunk in chunks:
             h.update(chunk)
             f.write(chunk)
     digest = h.hexdigest()

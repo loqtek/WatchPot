@@ -1,22 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, LayoutDashboard, LogIn } from "lucide-react";
 import { Logo } from "@/components/shell/logo";
 import { Button } from "@/components/ui/button";
-import { getToken } from "@/lib/api";
-
-function subscribeNoop() {
-  return () => {};
-}
-
-function getAuthedSnapshot() {
-  return !!getToken();
-}
+import { probeSession } from "@/lib/api";
 
 export default function NotFound() {
-  const authed = useSyncExternalStore(subscribeNoop, getAuthedSnapshot, () => false);
+  const [authed, setAuthed] = useState(false);
+
+  useEffect(() => {
+    void probeSession().then(setAuthed);
+  }, []);
 
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-zinc-950 px-4 py-12">

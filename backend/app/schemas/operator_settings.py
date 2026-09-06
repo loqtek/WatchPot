@@ -11,6 +11,7 @@ class OperatorSettingsOut(BaseModel):
     external_log_paths: list[str]
     jwt_algorithm: str
     heartbeat_stale_minutes: int
+    public_agent_enrollment_required: bool
 
 
 class OperatorSettingsUpdate(BaseModel):

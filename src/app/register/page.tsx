@@ -3,7 +3,7 @@
 import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { apiFetch, setToken } from "@/lib/api";
+import { apiFetch, rememberCsrfToken } from "@/lib/api";
 import { notify } from "@/lib/toast";
 import { AuthPageLayout } from "@/components/auth/auth-card";
 import { Button } from "@/components/ui/button";
@@ -28,11 +28,11 @@ export default function RegisterPage() {
       });
       const u = username.trim();
       const loginId = u || email;
-      const res = await apiFetch<{ access_token: string }>("/auth/login", {
+      const res = await apiFetch<{ csrf_token: string }>("/auth/login", {
         method: "POST",
         json: { identifier: loginId, password },
       });
-      setToken(res.access_token);
+      rememberCsrfToken(res.csrf_token);
       router.push("/dashboard");
     } catch (e) {
       notify.apiError(e, "Registration failed");

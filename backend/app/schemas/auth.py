@@ -36,6 +36,7 @@ class UserOut(BaseModel):
     email: str
     username: str | None
     is_active: bool
+    is_admin: bool
     timezone: str
 
     model_config = {"from_attributes": True}
@@ -45,10 +46,20 @@ class ProfileUpdate(BaseModel):
     timezone: str | None = Field(default=None, max_length=64)
 
 
-class Token(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
+class SessionOut(BaseModel):
+    csrf_token: str
+    token_type: str = "cookie"
     local_agent: dict[str, object] | None = None
+
+
+class Token(SessionOut):
+    """Backward-compatible alias for login/register session payload."""
+
+    access_token: str | None = None
+
+
+class CsrfOut(BaseModel):
+    csrf_token: str
 
 
 class PasswordChange(BaseModel):

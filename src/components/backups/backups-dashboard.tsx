@@ -16,7 +16,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { BackupManageModal } from "@/components/backups/backup-manage-modal";
-import { apiFetch, getApiBase, getToken } from "@/lib/api";
+import { apiDownload, apiFetch } from "@/lib/api";
 import {
   backupStatusTone,
   backupTypeLabel,
@@ -242,13 +242,7 @@ function JobRow({
 }
 
 async function downloadArtifact(artifactId: string, filename: string) {
-  const url = `${getApiBase().replace(/\/$/, "")}/backups/artifacts/${artifactId}/download`;
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${getToken()}` } });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(typeof err.detail === "string" ? err.detail : "Download failed");
-  }
-  const blob = await res.blob();
+  const blob = await apiDownload(`/backups/artifacts/${artifactId}/download`);
   const href = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = href;

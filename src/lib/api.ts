@@ -1,5 +1,3 @@
-const TOKEN_KEY = "watchpot_token";
-
 /** Browser + Docker default: HTTPS via nginx same-origin (/api). Plain HTTP :6040 is local dev only. */
 export function resolveApiBase(
   configured: string | undefined,
@@ -29,15 +27,29 @@ export function getApiOrigin(): string {
   return base.endsWith("/api") ? base.slice(0, -4) : base;
 }
 
-export function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem(TOKEN_KEY);
+let csrfToken: string | null = null;
+
+export function rememberCsrfToken(token: string | null | undefined): void {
+  csrfToken = token?.trim() ? token.trim() : null;
 }
 
-export function setToken(token: string | null): void {
-  if (typeof window === "undefined") return;
-  if (token) localStorage.setItem(TOKEN_KEY, token);
-  else localStorage.removeItem(TOKEN_KEY);
+export function clearClientSession(): void {
+  csrfToken = null;
+}
+
+export async function ensureCsrfToken(): Promise<string> {
+  if (csrfToken) return csrfToken;
+  const url = `${getApiBase().replace(/\/$/, "")}/auth/csrf`;
+  const res = await fetch(url, { credentials: "include" });
+  if (!res.ok) {
+    throw new Error("Could not obtain CSRF token");
+  }
+  const body = (await res.json()) as { csrf_token?: string };
+  if (!body.csrf_token) {
+    throw new Error("CSRF token missing from server");
+  }
+  csrfToken = body.csrf_token;
+  return csrfToken;
 }
 
 export function parseApiErrorBody(text: string, statusText: string): string {
@@ -75,13 +87,16 @@ export async function apiFetch<T>(
 ): Promise<T> {
   const url = `${getApiBase().replace(/\/$/, "")}${path.startsWith("/") ? path : `/${path}`}`;
   const headers = new Headers(init.headers);
-  const token = getToken();
-  if (token) headers.set("Authorization", `Bearer ${token}`);
+  const method = (init.method || "GET").toUpperCase();
+  if (method !== "GET" && method !== "HEAD") {
+    headers.set("X-CSRF-Token", await ensureCsrfToken());
+  }
   if (init.json !== undefined) {
     headers.set("Content-Type", "application/json");
   }
   const res = await fetch(url, {
     ...init,
+    credentials: "include",
     headers,
     body: init.json !== undefined ? JSON.stringify(init.json) : init.body,
   });
@@ -91,4 +106,27 @@ export async function apiFetch<T>(
   }
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
+}
+
+export async function apiDownload(path: string): Promise<Blob> {
+  const url = `${getApiBase().replace(/\/$/, "")}${path.startsWith("/") ? path : `/${path}`}`;
+  const res = await fetch(url, { credentials: "include" });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(parseApiErrorBody(text, res.statusText));
+  }
+  return res.blob();
+}
+
+export async function probeSession(timeoutMs = 5_000): Promise<boolean> {
+  try {
+    const url = `${getApiBase().replace(/\/$/, "")}/auth/me`;
+    const res = await fetch(url, {
+      credentials: "include",
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
 }

@@ -32,6 +32,7 @@ export default function PotsPage() {
   const [createdKey, setCreatedKey] = useState<string | null>(null);
   const [createdPotId, setCreatedPotId] = useState<string | null>(null);
   const [createdPotName, setCreatedPotName] = useState<string | null>(null);
+  const [createdEnrollment, setCreatedEnrollment] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const list = pots ?? [];
@@ -41,15 +42,17 @@ export default function PotsPage() {
     setCreatedKey(null);
     setCreatedPotId(null);
     setCreatedPotName(null);
+    setCreatedEnrollment(null);
     setSubmitting(true);
     try {
-      const res = await apiFetch<Pot & { agent_key: string }>("/pots", {
+      const res = await apiFetch<Pot & { agent_key: string; enrollment_token?: string | null }>("/pots", {
         method: "POST",
         json: { name },
       });
       setCreatedKey(res.agent_key);
       setCreatedPotId(res.id);
       setCreatedPotName(res.name);
+      setCreatedEnrollment(res.enrollment_token ?? null);
       setName("");
       await refetch();
       notify.success(`Pot "${res.name}" created`);
@@ -64,6 +67,7 @@ export default function PotsPage() {
     setCreatedKey(null);
     setCreatedPotId(null);
     setCreatedPotName(null);
+    setCreatedEnrollment(null);
   }
 
   return (
@@ -73,6 +77,7 @@ export default function PotsPage() {
         agentKey={createdKey ?? ""}
         potId={createdPotId ?? ""}
         potName={createdPotName ?? undefined}
+        enrollmentToken={createdEnrollment}
         onClose={dismissKeyModal}
       />
       <PageHeader

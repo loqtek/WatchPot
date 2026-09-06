@@ -1,4 +1,4 @@
-"""Public agent enrollment assets (install script + source bundle). No auth required."""
+"""Public agent enrollment assets (install script + source bundle)."""
 
 from __future__ import annotations
 
@@ -7,15 +7,34 @@ import os
 import tarfile
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Header, HTTPException, Query
 from fastapi.responses import Response, StreamingResponse
 
+from app.enrollment import enrollment_token_valid, public_agent_open
 from app.local_agent import agent_dir
 
 router = APIRouter(prefix="/public/agent", tags=["public-agent"])
 
 _BUNDLE_SKIP_DIRS = {".venv", "__pycache__", "data", ".git"}
 _BUNDLE_SKIP_FILES = {".env"}
+
+
+def _require_enrollment(
+    enrollment: str | None,
+    x_watchpot_enrollment: str | None,
+) -> None:
+    if public_agent_open():
+        return
+    token = (x_watchpot_enrollment or enrollment or "").strip()
+    if enrollment_token_valid(token):
+        return
+    raise HTTPException(
+        status_code=401,
+        detail=(
+            "Enrollment token required. Pass ?enrollment= or X-WatchPot-Enrollment "
+            "from a short-lived token minted in the UI, or set WATCHPOT_PUBLIC_AGENT_OPEN=true for lab use."
+        ),
+    )
 
 
 def _ca_cert_paths() -> list[Path]:
@@ -26,7 +45,7 @@ def _ca_cert_paths() -> list[Path]:
         [
             Path("/etc/watchpot/tls/ca.crt"),
             Path("/etc/nginx/tls/ca.crt"),
-        ],
+        ]
     )
     return paths
 
@@ -80,34 +99,46 @@ def _build_bundle_bytes() -> bytes:
 
 
 @router.get("/ca.crt")
-async def get_ca_cert() -> Response:
+async def get_ca_cert(
+    enrollment: str | None = Query(default=None),
+    x_watchpot_enrollment: str | None = Header(default=None),
+) -> Response:
+    _require_enrollment(enrollment, x_watchpot_enrollment)
     return Response(
         content=_read_ca_cert(),
         media_type="application/x-pem-file",
-        headers={"Cache-Control": "public, max-age=300"},
+        headers={"Cache-Control": "private, max-age=60"},
     )
 
 
 @router.get("/install.sh")
-async def get_install_script() -> Response:
+async def get_install_script(
+    enrollment: str | None = Query(default=None),
+    x_watchpot_enrollment: str | None = Header(default=None),
+) -> Response:
+    _require_enrollment(enrollment, x_watchpot_enrollment)
     path = _install_script_path()
     if not path.is_file():
         raise HTTPException(status_code=503, detail="Install script unavailable on this server")
     return Response(
         content=path.read_bytes(),
         media_type="text/x-shellscript; charset=utf-8",
-        headers={"Cache-Control": "public, max-age=300"},
+        headers={"Cache-Control": "private, max-age=60"},
     )
 
 
 @router.get("/bundle.tar.gz")
-async def get_agent_bundle() -> StreamingResponse:
+async def get_agent_bundle(
+    enrollment: str | None = Query(default=None),
+    x_watchpot_enrollment: str | None = Header(default=None),
+) -> StreamingResponse:
+    _require_enrollment(enrollment, x_watchpot_enrollment)
     data = _build_bundle_bytes()
     return StreamingResponse(
         io.BytesIO(data),
         media_type="application/gzip",
         headers={
             "Content-Disposition": 'attachment; filename="watchpot-agent-bundle.tar.gz"',
-            "Cache-Control": "public, max-age=300",
+            "Cache-Control": "private, max-age=60",
         },
     )

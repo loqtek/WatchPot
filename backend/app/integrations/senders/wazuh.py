@@ -164,7 +164,7 @@ async def send_wazuh(
     timeout = client.timeout if client.timeout is not None else httpx.Timeout(15.0)
     url = f"{base}/{index}/_doc"
 
-    async with httpx.AsyncClient(timeout=timeout, follow_redirects=True, verify=verify) as wazuh_client:
+    async with httpx.AsyncClient(timeout=timeout, follow_redirects=False, verify=verify) as wazuh_client:
         ok, probe_msg = await _probe_indexer(wazuh_client, base, auth)
         if not ok:
             return False, probe_msg

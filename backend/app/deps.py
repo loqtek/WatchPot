@@ -10,8 +10,18 @@ from app.database import get_db
 from app.models.pot import Pot
 from app.models.user import User
 from app.security import decode_access_token, verify_secret
+from app.session_cookies import session_token_from_request
 
 security = HTTPBearer(auto_error=False)
+
+
+def _bearer_token(
+    creds: HTTPAuthorizationCredentials | None,
+    request: Request,
+) -> str | None:
+    if creds is not None and creds.scheme.lower() == "bearer" and creds.credentials:
+        return creds.credentials
+    return session_token_from_request(request)
 
 
 async def get_current_user(
@@ -19,9 +29,10 @@ async def get_current_user(
     db: Annotated[AsyncSession, Depends(get_db)],
     creds: Annotated[HTTPAuthorizationCredentials | None, Depends(security)],
 ) -> User:
-    if creds is None or creds.scheme.lower() != "bearer":
+    token = _bearer_token(creds, request)
+    if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
-    payload = decode_access_token(creds.credentials)
+    payload = decode_access_token(token)
     if not payload or "sub" not in payload:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
     try:
@@ -33,6 +44,12 @@ async def get_current_user(
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
     request.state.user_id = str(user.id)
+    return user
+
+
+async def require_admin_user(user: Annotated[User, Depends(get_current_user)]) -> User:
+    if not user.is_admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin privileges required")
     return user
 
 

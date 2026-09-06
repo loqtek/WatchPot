@@ -249,7 +249,7 @@ async def send_zabbix(
     mode = resolve_zabbix_connection_mode(cfg)
     if mode == "api":
         if client is None:
-            async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as c:
+            async with httpx.AsyncClient(timeout=15.0, follow_redirects=False) as c:
                 return await send_zabbix_api(c, event, cfg)
         return await send_zabbix_api(client, event, cfg)
     return await send_zabbix_sender(event, cfg)

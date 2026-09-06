@@ -23,8 +23,14 @@ def generate_agent_key() -> str:
     return f"wp_{secrets.token_urlsafe(32)}"
 
 
-def create_access_token(subject: str, extra: dict[str, Any] | None = None) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(minutes=get_access_token_expire_minutes())
+def create_access_token(
+    subject: str,
+    extra: dict[str, Any] | None = None,
+    *,
+    expire_minutes: int | None = None,
+) -> str:
+    minutes = expire_minutes if expire_minutes is not None else get_access_token_expire_minutes()
+    expire = datetime.now(timezone.utc) + timedelta(minutes=minutes)
     to_encode: dict[str, Any] = {"sub": subject, "exp": expire}
     if extra:
         to_encode.update(extra)

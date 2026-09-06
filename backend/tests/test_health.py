@@ -25,3 +25,17 @@ async def test_api_root(client: AsyncClient) -> None:
 async def test_protected_route_requires_auth(client: AsyncClient) -> None:
     r = await client.get("/api/pots")
     assert r.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_public_agent_requires_enrollment(client: AsyncClient) -> None:
+    r = await client.get("/api/public/agent/ca.crt")
+    assert r.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_csrf_endpoint(client: AsyncClient) -> None:
+    r = await client.get("/api/auth/csrf")
+    assert r.status_code == 200
+    assert r.json().get("csrf_token")
+    assert "wp_csrf" in r.cookies

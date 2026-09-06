@@ -3,7 +3,7 @@
 import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { apiFetch, setToken } from "@/lib/api";
+import { apiFetch, rememberCsrfToken } from "@/lib/api";
 import { notify } from "@/lib/toast";
 import { AuthPageLayout } from "@/components/auth/auth-card";
 import { Button } from "@/components/ui/button";
@@ -22,13 +22,13 @@ export default function LoginPage() {
     setSubmitting(true);
     try {
       const res = await apiFetch<{
-        access_token: string;
+        csrf_token: string;
         local_agent?: { pot_id: string; created: boolean; credentials_written: boolean } | null;
       }>("/auth/login", {
         method: "POST",
         json: { identifier, password },
       });
-      setToken(res.access_token);
+      rememberCsrfToken(res.csrf_token);
       if (res.local_agent?.credentials_written) {
         sessionStorage.setItem(
           "watchpot_local_agent_notice",
