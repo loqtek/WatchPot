@@ -1,9 +1,11 @@
 # watchPot control-plane stack
 #
 # Quick start (PostgreSQL + HTTPS — default):
-#   cp .env.example .env   # set WATCHPOT_PUBLIC_HOST to your IP/hostname
+#   cp .env.example .env   # set WATCHPOT_PUBLIC_HOST; POSTGRES_PASSWORD may stay blank
 #   docker compose up -d --build
 #   docker compose logs api | grep -A4 watchPot   # one-time wpadmin password
+#
+# backend/.env is only for local ./run. This stack does not require it.
 #
 # Open the UI: https://localhost  (accept the browser warning, or trust the local CA below)
 # API / OpenAPI: https://localhost/docs
@@ -17,7 +19,7 @@
 # credentials to agent/.env. The in-stack agent talks to the API on the compose
 # network (http://api:6040/api). Disable with WATCHPOT_AUTO_LOCAL_AGENT=false.
 #
-# Fresh stack database (wipes compose Postgres + TLS certs):
+# Fresh stack database (wipes compose Postgres, the generated DB password, and TLS certs):
 #   docker compose down -v
 #
 # Browser and remote-agent traffic stays on the TLS proxy. Override the in-stack
@@ -55,11 +57,16 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     image: watchpot-api:local
+    # Local ./run overrides. Missing on a fresh clone; Compose environment wins when both exist.
     env_file:
-      - ./backend/.env
+      - path: ./backend/.env
+        required: false
+    entrypoint: ["/usr/local/bin/watchpot-api-entrypoint.sh"]
     environment:
-      # Must match POSTGRES_PASSWORD below (Postgres only applies that on first volume init).
-      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://watchpot:${POSTGRES_PASSWORD}@postgres:5432/watchpot}
+      # Empty means the entrypoint builds this from the password file (see postgres).
+      # An explicit DATABASE_URL in the root .env is used as-is.
+      DATABASE_URL: ${DATABASE_URL:-}
+      WATCHPOT_DB_PASSWORD_FILE: /run/secrets/db_password
       WATCHPOT_API_ROLE: ${WATCHPOT_API_ROLE:-control}
       WATCHPOT_STACK_MODE: ${WATCHPOT_STACK_MODE:-full}
       WATCHPOT_AUTO_LOCAL_AGENT: ${WATCHPOT_AUTO_LOCAL_AGENT:-true}
@@ -76,6 +83,7 @@ services:
     volumes:
       - ./agent:/agent
       - watchpot_tls:/etc/watchpot/tls:ro
+      - stack_db_secret:/run/secrets:ro
     expose:
       - "6040"
     depends_on:
@@ -145,12 +153,18 @@ services:
 
   postgres:
     image: postgres:16-alpine
+    entrypoint: ["/bin/sh", "/watchpot-postgres-entrypoint.sh"]
     environment:
       POSTGRES_USER: watchpot
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      # Seed used only when stack_db_secret has no password yet. Leave blank to generate one.
+      # Not POSTGRES_PASSWORD: the official entrypoint rejects that together with _FILE.
+      WATCHPOT_DB_PASSWORD_SEED: ${POSTGRES_PASSWORD:-}
+      POSTGRES_PASSWORD_FILE: /secrets/db_password
       POSTGRES_DB: watchpot
     volumes:
       - stack_pgdata:/var/lib/postgresql/data
+      - stack_db_secret:/secrets
+      - ./deploy/postgres/entrypoint.sh:/watchpot-postgres-entrypoint.sh:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U watchpot -d watchpot"]
       interval: 5s
@@ -161,3 +175,4 @@ volumes:
   watchpot_tls:
   agent_work:
   stack_pgdata:
+  stack_db_secret:

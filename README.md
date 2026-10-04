@@ -78,7 +78,8 @@ git clone https://github.com/loqtek/watchPot.git
 cd watchPot
 
 cp .env.example .env
-# Edit WATCHPOT_PUBLIC_HOST to your VPS IP or hostname, then:
+# Edit WATCHPOT_PUBLIC_HOST to your VPS IP or hostname.
+# POSTGRES_PASSWORD can stay blank for random password, or set your own secure one.
 docker compose up -d --build
 ```
 
@@ -221,7 +222,7 @@ docker compose up -d --build web
 **Production checklist**
 
 - Terminate TLS at a reverse proxy or load balancer
-- Use strong Postgres credentials (override defaults in `docker-compose.yml` / `backend/.env`)
+- Set `POSTGRES_PASSWORD` in the root `.env` before the first start, or leave it blank and let the stack generate one
 - Rotate `jwt_secret` in the `app_settings` table after go-live
 
 ### Remote agent

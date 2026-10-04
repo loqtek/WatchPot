@@ -8,7 +8,8 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY docker-setup-entrypoint.sh /usr/local/bin/watchpot-setup-entrypoint.sh
-RUN chmod +x /usr/local/bin/watchpot-setup-entrypoint.sh
+COPY docker-api-entrypoint.sh /usr/local/bin/watchpot-api-entrypoint.sh
+RUN chmod +x /usr/local/bin/watchpot-setup-entrypoint.sh /usr/local/bin/watchpot-api-entrypoint.sh
 
 COPY app ./app
 
