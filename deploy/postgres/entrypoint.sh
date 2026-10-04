@@ -17,4 +17,10 @@ if [ ! -s "$f" ]; then
   chmod 600 "$f"
 fi
 
+# Compose drops the image CMD when entrypoint is overridden. Without this,
+# docker-entrypoint.sh is exec'd with no arguments and the container exits 0.
+if [ "$#" -eq 0 ]; then
+  set -- postgres
+fi
+
 exec docker-entrypoint.sh "$@"

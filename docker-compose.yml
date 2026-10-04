@@ -153,7 +153,9 @@ services:
 
   postgres:
     image: postgres:16-alpine
+    # Image CMD is "postgres", but overriding entrypoint clears it.
     entrypoint: ["/bin/sh", "/watchpot-postgres-entrypoint.sh"]
+    command: ["postgres"]
     environment:
       POSTGRES_USER: watchpot
       # Seed used only when stack_db_secret has no password yet. Leave blank to generate one.
