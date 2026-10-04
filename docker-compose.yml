@@ -61,7 +61,9 @@ services:
     env_file:
       - path: ./backend/.env
         required: false
+    # Image CMD is uvicorn, but overriding entrypoint clears it.
     entrypoint: ["/usr/local/bin/watchpot-api-entrypoint.sh"]
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "6040"]
     environment:
       # Empty means the entrypoint builds this from the password file (see postgres).
       # An explicit DATABASE_URL in the root .env is used as-is.

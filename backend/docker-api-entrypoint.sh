@@ -19,4 +19,9 @@ if [ -z "${DATABASE_URL:-}" ]; then
   unset WATCHPOT_DB_PASSWORD
 fi
 
+# Compose drops the image CMD when entrypoint is overridden.
+if [ "$#" -eq 0 ]; then
+  set -- uvicorn app.main:app --host 0.0.0.0 --port 6040
+fi
+
 exec "$@"
