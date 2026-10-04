@@ -17,7 +17,7 @@
 # credentials to agent/.env; the agent container waits for that file then connects.
 # Disable with WATCHPOT_AUTO_LOCAL_AGENT=false (and remove or stop the agent service).
 #
-# Fresh database (wipes Postgres data + TLS certs):
+# Fresh stack database (wipes compose Postgres + TLS certs):
 #   docker compose down -v
 #
 # Plain HTTP debugging: set WATCHPOT_AGENT_API_URL=http://api:6040/api and expose api/web ports
@@ -58,7 +58,8 @@ services:
     env_file:
       - ./backend/.env
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://watchpot:watchpot@postgres:5432/watchpot}
+      # Must match POSTGRES_PASSWORD below (Postgres only applies that on first volume init).
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://watchpot:${POSTGRES_PASSWORD:-change-me-now}@postgres:5432/watchpot}
       WATCHPOT_API_ROLE: ${WATCHPOT_API_ROLE:-control}
       WATCHPOT_STACK_MODE: ${WATCHPOT_STACK_MODE:-full}
       WATCHPOT_AUTO_LOCAL_AGENT: ${WATCHPOT_AUTO_LOCAL_AGENT:-false}
@@ -69,7 +70,7 @@ services:
       WATCHPOT_CORS_ORIGINS: ${WATCHPOT_CORS_ORIGINS:-https://localhost,https://127.0.0.1}
       WATCHPOT_ALLOW_LOOPBACK_CORS: ${WATCHPOT_ALLOW_LOOPBACK_CORS:-false}
       EXPOSE_OPENAPI: ${EXPOSE_OPENAPI:-false}
-      WATCHPOT_LOG_BOOTSTRAP_PASSWORD: ${WATCHPOT_LOG_BOOTSTRAP_PASSWORD:-false}
+      WATCHPOT_LOG_BOOTSTRAP_PASSWORD: ${WATCHPOT_LOG_BOOTSTRAP_PASSWORD:-true}
       WATCHPOT_PUBLIC_AGENT_OPEN: ${WATCHPOT_PUBLIC_AGENT_OPEN:-false}
       WATCHPOT_INTEGRATION_ALLOW_LOOPBACK: ${WATCHPOT_INTEGRATION_ALLOW_LOOPBACK:-false}
     volumes:
@@ -149,7 +150,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-now}
       POSTGRES_DB: watchpot
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - stack_pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U watchpot -d watchpot"]
       interval: 5s
@@ -159,4 +160,4 @@ services:
 volumes:
   watchpot_tls:
   agent_work:
-  pgdata:
+  stack_pgdata:
