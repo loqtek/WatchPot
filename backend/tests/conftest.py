@@ -10,14 +10,15 @@ from httpx import ASGITransport, AsyncClient
 
 # Set test env before app modules load settings/engine.
 # Override with DATABASE_URL when pointing at a different Postgres/MySQL instance.
-os.environ.setdefault(
-    "DATABASE_URL",
-    "postgresql+asyncpg://watchpot:watchpot@127.0.0.1:5433/watchpot",
-)
-os.environ.setdefault("WATCHPOT_AUTO_LOCAL_AGENT", "false")
-os.environ.setdefault("WATCHPOT_ALLOW_LOOPBACK_CORS", "true")
-os.environ.setdefault("EXPOSE_OPENAPI", "true")
-os.environ.setdefault("WATCHPOT_LOG_BOOTSTRAP_PASSWORD", "false")
+# Do not override DATABASE_URL: backend/.env supplies the local helper password.
+# Force production-like gates so a developer's local_dev .env cannot open public routes.
+os.environ["WATCHPOT_STACK_MODE"] = "full"
+os.environ["WATCHPOT_PUBLIC_AGENT_OPEN"] = "false"
+os.environ["WATCHPOT_AUTO_LOCAL_AGENT"] = "false"
+os.environ["WATCHPOT_ALLOW_LOOPBACK_CORS"] = "true"
+os.environ["EXPOSE_OPENAPI"] = "true"
+os.environ["WATCHPOT_LOG_BOOTSTRAP_PASSWORD"] = "false"
+os.environ["WATCHPOT_TRUST_PROXY"] = "true"
 
 from app.config import get_env_settings  # noqa: E402
 

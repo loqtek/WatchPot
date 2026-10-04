@@ -39,11 +39,7 @@ function Segmented({
   children: React.ReactNode;
   className?: string;
 }) {
-  return (
-    <div className={cn("flex items-center rounded-md border border-zinc-800/90 bg-zinc-950/80 p-0.5", className)}>
-      {children}
-    </div>
-  );
+  return <div className={cn("seg seg-sm", className)}>{children}</div>;
 }
 
 function SegBtn({
@@ -58,15 +54,7 @@ function SegBtn({
   title?: string;
 }) {
   return (
-    <button
-      type="button"
-      title={title}
-      onClick={onClick}
-      className={cn(
-        "rounded px-2 py-1 text-[11px] font-medium tabular-nums transition-colors",
-        active ? "bg-zinc-800 text-zinc-100" : "text-zinc-500 hover:text-zinc-300",
-      )}
-    >
+    <button type="button" title={title} onClick={onClick} aria-pressed={active}>
       {children}
     </button>
   );
@@ -113,7 +101,7 @@ export function DashboardToolbar({
 }) {
   const { formatTime } = useFormatDateTime();
   return (
-    <header className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-2 border-b border-zinc-800/80 bg-zinc-950/90 px-3 py-2 sm:px-4">
+    <header className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-2 border-b border-line bg-surface px-3 py-2.5 sm:px-4">
       <div className="flex min-w-0 items-center gap-1">
         <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0" title="Back" onClick={onBack}>
           <ArrowLeft className="h-4 w-4" />

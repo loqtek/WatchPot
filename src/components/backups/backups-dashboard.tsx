@@ -45,7 +45,6 @@ import { Table, TableEmptyRow, TableWrap, TBody, Td, Th, THead, Tr } from "@/com
 import { useAsyncData } from "@/hooks/use-async-data";
 import { useFormatDateTime } from "@/hooks/use-format-datetime";
 import { notify } from "@/lib/toast";
-import { cn } from "@/lib/utils";
 
 type TabId = "repository" | "run" | "schedules" | "host";
 
@@ -96,25 +95,15 @@ export function BackupsDashboard() {
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatTile label="Completed jobs" value={stats.completed} icon={Camera} />
-        <StatTile label="Active jobs" value={stats.active} icon={Clock} tone={stats.active ? "info" : "default"} />
+        <StatTile label="Active jobs" value={stats.active} icon={Clock} />
         <StatTile label="Stored artifacts" value={formatBytes(stats.totalBytes)} icon={HardDrive} />
         <StatTile label="Active schedules" value={stats.schedules} icon={CalendarClock} />
       </div>
 
-      <div className="flex flex-wrap gap-1 border-b border-zinc-800/80 pb-px">
+      <div className="seg" role="group" aria-label="Backups">
         {TABS.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => setTab(t.id)}
-            className={cn(
-              "inline-flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium transition-colors -mb-px",
-              tab === t.id
-                ? "border-emerald-500 text-emerald-300"
-                : "border-transparent text-zinc-500 hover:text-zinc-300",
-            )}
-          >
-            <t.icon className="h-4 w-4" />
+          <button key={t.id} type="button" aria-pressed={tab === t.id} onClick={() => setTab(t.id)}>
+            <t.icon className="h-3.5 w-3.5" />
             {t.label}
           </button>
         ))}
@@ -168,22 +157,20 @@ function StatTile({
   label,
   value,
   icon: Icon,
-  tone = "default",
 }: {
   label: string;
   value: number | string;
   icon: React.ComponentType<{ className?: string }>;
-  tone?: "default" | "info";
 }) {
   return (
-    <div className="rounded-xl border border-zinc-800/90 bg-zinc-950/40 px-4 py-3">
-      <div className="flex items-center gap-2 text-zinc-500">
-        <Icon className="h-4 w-4" />
-        <span className="text-[10px] font-semibold uppercase tracking-wider">{label}</span>
+    <div className="rounded-2xl border border-line bg-surface px-5 py-4 shadow-card">
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-[13px] font-medium text-muted">{label}</span>
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-chip text-ink">
+          <Icon className="h-4 w-4" />
+        </span>
       </div>
-      <p className={cn("mt-1 text-xl font-semibold tabular-nums", tone === "info" ? "text-sky-300" : "text-zinc-100")}>
-        {value}
-      </p>
+      <p className="mt-3 text-[1.65rem] font-semibold tabular-nums tracking-[-0.03em] text-ink">{value}</p>
     </div>
   );
 }
@@ -507,7 +494,7 @@ function RunBackupTab({ pots, onCreated }: { pots: Pot[]; onCreated: () => void 
                   setPotId(e.target.value);
                   setContainer("");
                 }}
-                className="mt-1 flex h-10 w-full rounded-lg border border-zinc-800 bg-zinc-950/80 px-3 text-sm text-zinc-100"
+                className="mt-1 flex h-11 w-full rounded-xl border border-line bg-field px-3.5 text-sm text-ink"
                 required
               >
                 <option value="">Select pot…</option>
@@ -555,7 +542,7 @@ function RunBackupTab({ pots, onCreated }: { pots: Pot[]; onCreated: () => void 
                   <select
                     value={container}
                     onChange={(e) => setContainer(e.target.value)}
-                    className="mt-1 flex h-10 w-full rounded-lg border border-zinc-800 bg-zinc-950/80 px-3 text-sm text-zinc-100"
+                    className="mt-1 flex h-11 w-full rounded-xl border border-line bg-field px-3.5 text-sm text-ink"
                     required
                   >
                     <option value="">Select container…</option>
@@ -734,7 +721,7 @@ function SchedulesTab({
                 <select
                   value={potId}
                   onChange={(e) => setPotId(e.target.value)}
-                  className="mt-1 flex h-10 w-full rounded-lg border border-zinc-800 bg-zinc-950/80 px-3 text-sm"
+                  className="mt-1 flex h-11 w-full rounded-xl border border-line bg-field px-3.5 text-sm text-ink"
                   required
                 >
                   <option value="">Select…</option>
@@ -760,7 +747,7 @@ function SchedulesTab({
                 <select
                   value={backupType}
                   onChange={(e) => setBackupType(e.target.value as "container" | "pot")}
-                  className="mt-1 flex h-10 w-full rounded-lg border border-zinc-800 bg-zinc-950/80 px-3 text-sm"
+                  className="mt-1 flex h-11 w-full rounded-xl border border-line bg-field px-3.5 text-sm text-ink"
                 >
                   <option value="pot">Whole pot</option>
                   <option value="container">Single container</option>
@@ -782,7 +769,7 @@ function SchedulesTab({
                   <select
                     value={container}
                     onChange={(e) => setContainer(e.target.value)}
-                    className="mt-1 flex h-10 w-full rounded-lg border border-zinc-800 bg-zinc-950/80 px-3 text-sm"
+                    className="mt-1 flex h-11 w-full rounded-xl border border-line bg-field px-3.5 text-sm text-ink"
                     required
                   >
                     <option value="">Select…</option>
@@ -877,7 +864,7 @@ function SchedulesTab({
 
 function HostSnapshotsComingSoon() {
   return (
-    <Card className="border-dashed border-amber-500/25 bg-amber-500/5">
+    <Card className="border-dashed border-warn-border bg-amber-500/5">
       <CardHeader>
         <div className="flex items-start gap-4">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-400">

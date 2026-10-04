@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { mainNav } from "./nav-config";
+import { navSections } from "./nav-config";
 
 export function SidebarNav({
   collapsed,
@@ -15,46 +15,46 @@ export function SidebarNav({
   const pathname = usePathname() || "";
 
   return (
-    <nav
-      className={cn("flex flex-col gap-0.5 py-3", collapsed ? "px-1.5" : "px-2")}
-      aria-label="Main"
-    >
-      {mainNav.map((item) => {
-        const active = item.isActive(pathname);
-        const Icon = item.icon;
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            onClick={onNavigate}
-            title={collapsed ? item.label : undefined}
-            aria-label={collapsed ? item.label : undefined}
-            className={cn(
-              "group flex items-center rounded-lg text-sm font-medium transition-colors",
-              collapsed ? "justify-center px-2 py-2.5" : "gap-3 px-3 py-2.5",
-              active
-                ? collapsed
-                  ? "bg-emerald-500/12 text-emerald-300 ring-1 ring-emerald-500/30"
-                  : "bg-emerald-500/12 text-emerald-300 shadow-[inset_3px_0_0_0] shadow-emerald-500"
-                : "text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-100",
-            )}
-          >
-            <Icon
-              className={cn(
-                "h-[18px] w-[18px] shrink-0 transition-colors",
-                active ? "text-emerald-400" : "text-zinc-500 group-hover:text-zinc-400",
-              )}
-              strokeWidth={2}
-              aria-hidden
-            />
-            {collapsed ? (
-              <span className="sr-only">{item.label}</span>
-            ) : (
-              <span>{item.label}</span>
-            )}
-          </Link>
-        );
-      })}
+    <nav className={cn("flex flex-col py-3", collapsed ? "px-2" : "px-3")} aria-label="Main">
+      {navSections.map((section, index) => (
+        <div key={section.id} className={cn(index > 0 && (collapsed ? "mt-2" : "mt-5"))}>
+          {collapsed ? (
+            index > 0 ? <div className="mx-auto mb-2 h-px w-5 bg-black/10" /> : null
+          ) : (
+            <p className="px-3 pb-1.5 text-[11px] font-medium text-faint">{section.label}</p>
+          )}
+          <div className="flex flex-col gap-0.5">
+            {section.items.map((item) => {
+              const active = item.isActive(pathname);
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={onNavigate}
+                  title={collapsed ? item.label : undefined}
+                  aria-label={collapsed ? item.label : undefined}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "group flex items-center rounded-full text-sm font-medium transition-colors",
+                    collapsed ? "justify-center px-0 py-2.5" : "gap-3 px-3 py-2",
+                    active
+                      ? "bg-primary text-on-primary"
+                      : "text-muted hover:bg-hover hover:text-ink",
+                  )}
+                >
+                  <Icon
+                    className={cn("h-[18px] w-[18px] shrink-0", active ? "text-on-primary" : "text-faint group-hover:text-muted")}
+                    strokeWidth={1.75}
+                    aria-hidden
+                  />
+                  {collapsed ? <span className="sr-only">{item.label}</span> : <span>{item.label}</span>}
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      ))}
     </nav>
   );
 }

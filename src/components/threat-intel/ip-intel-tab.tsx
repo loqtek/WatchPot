@@ -127,19 +127,19 @@ export function IpIntelTab() {
     <div className="space-y-6">
       {stats ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+          <div className="rounded-xl border border-zinc-800 bg-surface p-4">
             <p className="text-xs uppercase tracking-wide text-zinc-500">Tracked IPs</p>
             <p className="mt-1 text-2xl font-semibold tabular-nums">{stats.total}</p>
           </div>
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+          <div className="rounded-xl border border-zinc-800 bg-surface p-4">
             <p className="text-xs uppercase tracking-wide text-zinc-500">Suspicious</p>
             <p className="mt-1 text-2xl font-semibold tabular-nums text-amber-300">{stats.suspicious}</p>
           </div>
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+          <div className="rounded-xl border border-zinc-800 bg-surface p-4">
             <p className="text-xs uppercase tracking-wide text-zinc-500">Watchlist</p>
             <p className="mt-1 text-2xl font-semibold tabular-nums text-red-300">{stats.watchlist}</p>
           </div>
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+          <div className="rounded-xl border border-zinc-800 bg-surface p-4">
             <p className="text-xs uppercase tracking-wide text-zinc-500">With geo data</p>
             <p className="mt-1 text-2xl font-semibold tabular-nums">{stats.with_geo}</p>
           </div>
@@ -172,7 +172,7 @@ export function IpIntelTab() {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm"
+                className="rounded-xl border border-line bg-field px-3 py-2 text-sm text-ink"
               >
                 <option value="">All statuses</option>
                 {IP_STATUS_OPTIONS.map((o) => (
@@ -221,7 +221,7 @@ export function IpIntelTab() {
                     {list.map((row) => (
                       <Tr
                         key={row.id}
-                        className={cn(selected?.id === row.id && "bg-emerald-950/20", "cursor-pointer")}
+                        className={cn(selected?.id === row.id && "bg-field", "cursor-pointer")}
                         onClick={() => openDetail(row)}
                       >
                         <Td className="font-mono text-sm text-zinc-200">{row.ip_address}</Td>

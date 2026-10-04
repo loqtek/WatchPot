@@ -10,28 +10,19 @@ export function Alert({
 }: HTMLAttributes<HTMLDivElement> & { variant?: "error" | "success" | "info" | "warning" }) {
   const styles =
     variant === "success"
-      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
+      ? "border-[var(--alert-success-border)] bg-[var(--alert-success-bg)] text-[var(--alert-success-fg)]"
       : variant === "info"
-        ? "border-sky-500/30 bg-sky-500/10 text-sky-200"
+        ? "border-[var(--alert-info-border)] bg-[var(--alert-info-bg)] text-[var(--alert-info-fg)]"
         : variant === "warning"
-          ? "border-amber-500/30 bg-amber-500/10 text-amber-200"
-          : "border-red-500/30 bg-red-500/10 text-red-200";
+          ? "border-[var(--alert-warning-border)] bg-[var(--alert-warning-bg)] text-[var(--alert-warning-fg)]"
+          : "border-[var(--alert-danger-border)] bg-[var(--alert-danger-bg)] text-[var(--alert-danger-fg)]";
 
   const Icon =
-    variant === "success"
-      ? CheckCircle2
-      : variant === "info"
-        ? Info
-        : variant === "warning"
-          ? AlertTriangle
-          : AlertCircle;
+    variant === "success" ? CheckCircle2 : variant === "info" ? Info : variant === "warning" ? AlertTriangle : AlertCircle;
 
   return (
-    <div
-      className={cn("flex gap-2 rounded-lg border px-3 py-2.5 text-sm", styles, className)}
-      {...props}
-    >
-      <Icon className="h-4 w-4 shrink-0 opacity-90 mt-0.5" aria-hidden />
+    <div className={cn("flex gap-2.5 rounded-2xl border px-3.5 py-3 text-sm", styles, className)} {...props}>
+      <Icon className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
       <div className="min-w-0 break-words">{children}</div>
     </div>
   );

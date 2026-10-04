@@ -13,8 +13,11 @@ from app.settings_keys import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
     ALLOW_PUBLIC_REGISTRATION,
     CORS_ORIGINS,
+    DEFAULT_ACCESS_TOKEN_EXPIRE_MINUTES,
+    DEFAULT_EVENT_RETENTION_MAX,
     DEPLOYMENT_STACK_MODE,
     EXTERNAL_LOG_PATHS,
+    EVENT_RETENTION_MAX,
     HEARTBEAT_STALE_MINUTES,
     JWT_ALGORITHM,
     JWT_SECRET,
@@ -22,7 +25,8 @@ from app.settings_keys import (
 
 _jwt_secret: str | None = None
 _jwt_algorithm: str = "HS256"
-_access_token_expire_minutes: int = 60 * 24
+_access_token_expire_minutes: int = DEFAULT_ACCESS_TOKEN_EXPIRE_MINUTES
+_event_retention_max: int = DEFAULT_EVENT_RETENTION_MAX
 _cors_origins_list: list[str] = []
 _external_log_paths: list[str] = []
 _deployment_stack_mode: str = "full"
@@ -60,6 +64,11 @@ def is_public_registration_allowed() -> bool:
     return _allow_public_registration
 
 
+def get_event_retention_max() -> int:
+    """Oldest events are deleted once the table grows past this many rows."""
+    return _event_retention_max
+
+
 def get_heartbeat_stale_minutes() -> int:
     """Pots with last_heartbeat_at older than this are treated as offline."""
     return _heartbeat_stale_minutes
@@ -78,7 +87,8 @@ async def load_settings_from_db(session: AsyncSession) -> dict[str, str]:
         _external_log_paths, \
         _deployment_stack_mode, \
         _allow_public_registration, \
-        _heartbeat_stale_minutes
+        _heartbeat_stale_minutes, \
+        _event_retention_max
 
     result = await session.execute(select(AppSetting))
     rows: dict[str, str] = {r.key: r.value for r in result.scalars().all()}
@@ -86,9 +96,17 @@ async def load_settings_from_db(session: AsyncSession) -> dict[str, str]:
     _jwt_secret = rows.get(JWT_SECRET)
     _jwt_algorithm = rows.get(JWT_ALGORITHM) or "HS256"
     try:
-        _access_token_expire_minutes = int(rows.get(ACCESS_TOKEN_EXPIRE_MINUTES) or str(60 * 24))
+        _access_token_expire_minutes = int(rows.get(ACCESS_TOKEN_EXPIRE_MINUTES) or str(DEFAULT_ACCESS_TOKEN_EXPIRE_MINUTES))
     except ValueError:
-        _access_token_expire_minutes = 60 * 24
+        _access_token_expire_minutes = DEFAULT_ACCESS_TOKEN_EXPIRE_MINUTES
+    if _access_token_expire_minutes < 15:
+        _access_token_expire_minutes = 15
+    try:
+        _event_retention_max = int(rows.get(EVENT_RETENTION_MAX) or str(DEFAULT_EVENT_RETENTION_MAX))
+    except ValueError:
+        _event_retention_max = DEFAULT_EVENT_RETENTION_MAX
+    if _event_retention_max < 1_000:
+        _event_retention_max = DEFAULT_EVENT_RETENTION_MAX
     _cors_origins_list = _parse_origins(rows.get(CORS_ORIGINS) or "https://localhost,https://127.0.0.1")
     try:
         raw_paths = rows.get(EXTERNAL_LOG_PATHS) or "[]"

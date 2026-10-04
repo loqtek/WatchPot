@@ -5,6 +5,8 @@ export type UserOut = {
   is_active: boolean;
   is_admin: boolean;
   timezone: string;
+  must_change_password: boolean;
+  totp_enabled: boolean;
 };
 
 export type UserAdmin = UserOut & {
@@ -186,6 +188,8 @@ export type OperatorSettings = {
   jwt_algorithm: string;
   /** Pots with heartbeats older than this many minutes are shown as offline. */
   heartbeat_stale_minutes: number;
+  /** Oldest events are deleted after the table exceeds this many rows. */
+  event_retention_max: number;
   public_agent_enrollment_required: boolean;
 };
 

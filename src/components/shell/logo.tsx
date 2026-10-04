@@ -37,9 +37,7 @@ export function Logo({
   );
 
   const label = !collapsed ? (
-    <span className="truncate font-semibold tracking-tight text-zinc-100">
-      watch<span className="text-emerald-400">Pot</span>
-    </span>
+    <span className="truncate text-[15px] font-semibold tracking-tight text-ink">watchPot</span>
   ) : null;
 
   if (!asLink) {
@@ -55,7 +53,7 @@ export function Logo({
     <Link
       href={href}
       className={cn(
-        "flex min-w-0 items-center gap-2.5 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40",
+        "flex min-w-0 items-center gap-2.5 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ink/20",
         className,
       )}
     >

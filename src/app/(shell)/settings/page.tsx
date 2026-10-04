@@ -12,7 +12,6 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Spinner } from "@/components/ui/spinner";
 import { useAsyncData } from "@/hooks/use-async-data";
 import { useAuth } from "@/hooks/use-auth";
-import { cn } from "@/lib/utils";
 
 type Tab = "users" | "account" | "access";
 
@@ -43,17 +42,9 @@ export default function SettingsPage() {
         }
       />
 
-      <div className="flex flex-wrap gap-1 rounded-lg border border-zinc-800/90 bg-zinc-950/80 p-1">
+      <div className="seg w-fit" role="group" aria-label="Settings">
         {TABS.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => setTab(t.id)}
-            className={cn(
-              "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-              tab === t.id ? "bg-zinc-800 text-zinc-100" : "text-zinc-500 hover:text-zinc-300",
-            )}
-          >
+          <button key={t.id} type="button" aria-pressed={tab === t.id} onClick={() => setTab(t.id)}>
             {t.label}
           </button>
         ))}

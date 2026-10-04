@@ -6,7 +6,7 @@ import "react-toastify/dist/ReactToastify.css";
 export function ToastProvider() {
   return (
     <ToastContainer
-      theme="dark"
+      theme="light"
       newestOnTop
       limit={4}
       role="status"

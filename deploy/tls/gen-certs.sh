@@ -51,6 +51,7 @@ DNS.1 = localhost
 DNS.2 = watchpot.local
 DNS.3 = web
 DNS.4 = api
+DNS.5 = proxy
 IP.1 = 127.0.0.1
 IP.2 = ::1
 EOF

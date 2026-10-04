@@ -27,7 +27,7 @@ export function UserMenu({
   className?: string;
 }) {
   return (
-    <div className={cn("border-t border-zinc-800/90 p-3", className)}>
+    <div className={cn("border-t border-line p-3", className)}>
       {loading ? (
         <div
           className={cn(
@@ -48,7 +48,7 @@ export function UserMenu({
             title={collapsed ? `${user.username || user.email.split("@")[0]} · ${user.email}` : undefined}
           >
             <span
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-xs font-semibold text-zinc-300 ring-1 ring-zinc-700"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-on-primary"
               aria-hidden
             >
               {initials(user)}

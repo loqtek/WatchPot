@@ -10,7 +10,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Spinner } from "@/components/ui/spinner";
 import { useAsyncData } from "@/hooks/use-async-data";
 import { useFormatDateTime } from "@/hooks/use-format-datetime";
-import { cn } from "@/lib/utils";
 
 const RANGES = ["1h", "24h", "7d"] as const;
 
@@ -34,13 +33,15 @@ function StatTile({
   icon: React.ComponentType<{ className?: string }>;
 }) {
   return (
-    <div className="rounded-xl border border-zinc-800/90 bg-zinc-950/40 p-4">
+    <div className="rounded-2xl border border-line bg-surface p-4 shadow-card">
       <div className="flex items-start justify-between gap-2">
-        <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">{label}</p>
-        <Icon className="h-4 w-4 text-zinc-600" aria-hidden />
+        <p className="text-[13px] font-medium text-muted">{label}</p>
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-chip text-ink">
+          <Icon className="h-4 w-4" aria-hidden />
+        </span>
       </div>
-      <p className="mt-2 text-2xl font-semibold tabular-nums text-zinc-100">{value}</p>
-      {sub ? <p className="mt-1 text-xs text-zinc-500">{sub}</p> : null}
+      <p className="mt-3 text-2xl font-semibold tabular-nums tracking-[-0.03em] text-ink">{value}</p>
+      {sub ? <p className="mt-1 text-xs text-faint">{sub}</p> : null}
     </div>
   );
 }
@@ -56,19 +57,9 @@ export function PotStatsPanel({ pot, range, onRangeChange, onRefreshInfra, infra
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-1.5">
+        <div className="seg seg-sm" role="group" aria-label="Range">
           {RANGES.map((r) => (
-            <button
-              key={r}
-              type="button"
-              onClick={() => onRangeChange(r)}
-              className={cn(
-                "rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors",
-                range === r
-                  ? "border-emerald-600/50 bg-emerald-500/10 text-emerald-300"
-                  : "border-zinc-800 text-zinc-500 hover:border-zinc-700",
-              )}
-            >
+            <button key={r} type="button" aria-pressed={range === r} onClick={() => onRangeChange(r)}>
               {r}
             </button>
           ))}

@@ -64,7 +64,7 @@ const RANGES = [
 
 function StatTile({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+    <div className="rounded-xl border border-zinc-800 bg-surface p-4">
       <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">{label}</p>
       <p className="mt-1 text-2xl font-semibold tabular-nums text-zinc-100">{value}</p>
       {sub ? <p className="mt-1 text-xs text-zinc-500">{sub}</p> : null}
@@ -95,22 +95,12 @@ export function ThreatIntelPanel() {
         }
       />
 
-      <div className="flex flex-wrap gap-2 border-b border-zinc-800 pb-1">
+      <div className="seg max-w-full flex-wrap" role="group" aria-label="Threat intelligence">
         {TABS.map((t) => {
           const Icon = t.icon;
           return (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setTab(t.id)}
-              className={cn(
-                "inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                tab === t.id
-                  ? "bg-emerald-950/60 text-emerald-300 ring-1 ring-emerald-800/60"
-                  : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200",
-              )}
-            >
-              <Icon className="h-4 w-4" />
+            <button key={t.id} type="button" aria-pressed={tab === t.id} onClick={() => setTab(t.id)}>
+              <Icon className="h-3.5 w-3.5" />
               {t.label}
             </button>
           );
@@ -157,7 +147,7 @@ function OverviewTab({
               id="ti-range"
               value={range}
               onChange={(e) => onRangeChange(e.target.value)}
-              className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-200"
+              className="rounded-xl border border-line bg-field px-3 py-2 text-sm text-ink"
             >
               {RANGES.map((r) => (
                 <option key={r.value} value={r.value}>
@@ -182,7 +172,7 @@ function OverviewTab({
               </div>
 
               {!stats.config.enabled ? (
-                <div className="rounded-lg border border-amber-900/50 bg-amber-950/20 px-4 py-3 text-sm text-amber-200">
+                <div className="rounded-lg border border-warn-border bg-warn px-4 py-3 text-sm text-amber-200">
                   Enrichment is disabled in settings. Events are stored but not fingerprinted.
                 </div>
               ) : null}
@@ -498,7 +488,7 @@ function RulesTab({ onChanged }: { onChanged: () => void }) {
                 <div>
                   <Label>Pattern type</Label>
                   <select
-                    className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm"
+                    className="mt-1 w-full rounded-xl border border-line bg-field px-3 py-2 text-sm text-ink"
                     value={editing.pattern_type ?? "regex"}
                     onChange={(e) =>
                       setEditing({ ...editing, pattern_type: e.target.value as EnrichmentRule["pattern_type"] })
@@ -514,7 +504,7 @@ function RulesTab({ onChanged }: { onChanged: () => void }) {
                 <div>
                   <Label>Match field</Label>
                   <select
-                    className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm"
+                    className="mt-1 w-full rounded-xl border border-line bg-field px-3 py-2 text-sm text-ink"
                     value={editing.match_field ?? "both"}
                     onChange={(e) =>
                       setEditing({ ...editing, match_field: e.target.value as EnrichmentRule["match_field"] })
@@ -557,7 +547,7 @@ function RulesTab({ onChanged }: { onChanged: () => void }) {
                 <div>
                   <Label>Severity boost</Label>
                   <select
-                    className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm"
+                    className="mt-1 w-full rounded-xl border border-line bg-field px-3 py-2 text-sm text-ink"
                     value={editing.severity ?? ""}
                     onChange={(e) => setEditing({ ...editing, severity: e.target.value || null })}
                   >
@@ -770,7 +760,7 @@ function SchedulesTab() {
             <div>
               <Label>Job type</Label>
               <select
-                className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm"
+                className="mt-1 w-full rounded-xl border border-line bg-field px-3 py-2 text-sm text-ink"
                 value={draft.job_type ?? "batch_reenrich"}
                 onChange={(e) =>
                   setDraft({ ...draft, job_type: e.target.value as EnrichmentSchedule["job_type"] })

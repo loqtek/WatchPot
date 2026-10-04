@@ -50,7 +50,7 @@ function LogWindowConfigDialogBody({
   return (
     <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
       <div
-        className="w-full max-w-md rounded-xl border border-zinc-800 bg-zinc-950 p-5 shadow-2xl"
+        className="w-full max-w-md rounded-2xl border border-line bg-surface p-5 shadow-2xl"
         role="dialog"
         aria-labelledby="log-window-config-title"
       >
@@ -66,7 +66,7 @@ function LogWindowConfigDialogBody({
               id="lw-pot"
               value={draft.potId}
               onChange={(e) => setDraft((d) => ({ ...d, potId: e.target.value, container: "" }))}
-              className="mt-1 flex h-10 w-full rounded-lg border border-zinc-800 bg-zinc-950/80 px-3 text-sm text-zinc-100"
+              className="mt-1 flex h-11 w-full rounded-xl border border-line bg-field px-3.5 text-sm text-ink"
             >
               <option value="">Select pot…</option>
               {pots.map((p) => (
@@ -90,7 +90,7 @@ function LogWindowConfigDialogBody({
                 value={draft.container}
                 onChange={(e) => setDraft((d) => ({ ...d, container: e.target.value }))}
                 disabled={!draft.potId}
-                className="mt-1 flex h-10 w-full rounded-lg border border-zinc-800 bg-zinc-950/80 px-3 text-sm text-zinc-100 disabled:opacity-50"
+                className="mt-1 flex h-11 w-full rounded-xl border border-line bg-field px-3.5 text-sm text-ink disabled:opacity-50"
               >
                 <option value="">Select container…</option>
                 {containers.map((c) => (

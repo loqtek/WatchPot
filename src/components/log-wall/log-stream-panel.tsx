@@ -62,10 +62,10 @@ export function LogStreamPanel({
     : "Unconfigured window";
 
   return (
-    <div className="group/panel relative flex h-full flex-col overflow-hidden rounded-lg border border-zinc-800/80 bg-zinc-900/60">
+    <div className="group/panel relative flex h-full flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-card">
       <div
         className={cn(
-          "flex shrink-0 items-center justify-between gap-2 border-b border-zinc-800/70 bg-zinc-900/90 px-2 py-1",
+          "flex shrink-0 items-center justify-between gap-2 border-b border-line bg-recessed px-3 py-2",
           editMode && "log-wall-drag-handle cursor-grab active:cursor-grabbing",
         )}
       >
@@ -141,7 +141,7 @@ export function LogStreamPanel({
         <pre
           ref={preRef}
           onScroll={handleScroll}
-          className="h-full overflow-auto rounded border border-zinc-800/60 bg-zinc-950/80 p-2 font-mono text-[11px] leading-relaxed text-zinc-300 whitespace-pre-wrap"
+          className="h-full overflow-auto rounded-xl border border-line bg-recessed p-3 font-mono text-[11px] leading-relaxed text-body whitespace-pre-wrap"
         >
           {!configured
             ? "Configure this window to start streaming logs."

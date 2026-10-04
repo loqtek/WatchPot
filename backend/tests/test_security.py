@@ -142,6 +142,116 @@ def test_rate_limit_trips_after_window() -> None:
     reset_rate_limits_for_tests()
 
 
+def test_client_ip_ignores_spoofed_forwarded_prefix(monkeypatch: pytest.MonkeyPatch) -> None:
+    from starlette.requests import Request
+
+    monkeypatch.setenv("WATCHPOT_TRUST_PROXY", "true")
+    get_env_settings.cache_clear()
+    try:
+        from app.rate_limit import client_ip
+
+        scope = {
+            "type": "http",
+            "asgi": {"version": "3.0"},
+            "http_version": "1.1",
+            "method": "POST",
+            "scheme": "https",
+            "path": "/api/auth/login",
+            "raw_path": b"/api/auth/login",
+            "query_string": b"",
+            "headers": [
+                (b"x-forwarded-for", b"1.2.3.4, 203.0.113.10"),
+                (b"x-real-ip", b"203.0.113.10"),
+            ],
+            "client": ("172.18.0.2", 443),
+            "server": ("api", 6040),
+        }
+        assert client_ip(Request(scope)) == "203.0.113.10"
+
+        scope["headers"] = [(b"x-forwarded-for", b"8.8.8.8, 198.51.100.20")]
+        assert client_ip(Request(scope)) == "198.51.100.20"
+    finally:
+        get_env_settings.cache_clear()
+
+
+def test_client_ip_uses_socket_peer_when_proxy_untrusted(monkeypatch: pytest.MonkeyPatch) -> None:
+    from starlette.requests import Request
+
+    monkeypatch.setenv("WATCHPOT_TRUST_PROXY", "false")
+    get_env_settings.cache_clear()
+    try:
+        from app.rate_limit import client_ip
+
+        scope = {
+            "type": "http",
+            "asgi": {"version": "3.0"},
+            "http_version": "1.1",
+            "method": "POST",
+            "scheme": "http",
+            "path": "/",
+            "raw_path": b"/",
+            "query_string": b"",
+            "headers": [(b"x-forwarded-for", b"1.2.3.4"), (b"x-real-ip", b"1.2.3.4")],
+            "client": ("10.1.1.9", 1234),
+            "server": ("api", 6040),
+        }
+        assert client_ip(Request(scope)) == "10.1.1.9"
+    finally:
+        get_env_settings.cache_clear()
+
+
+def test_access_token_rejected_after_session_bump(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("app.security.get_jwt_secret", lambda: "unit-test-secret")
+    monkeypatch.setattr("app.security.get_jwt_algorithm", lambda: "HS256")
+    monkeypatch.setattr("app.security.get_access_token_expire_minutes", lambda: 30)
+    from app.security import access_token_matches_user, create_access_token, create_preauth_token, decode_access_token
+
+    token = create_access_token("user-1", session_version=3)
+    payload = decode_access_token(token)
+    assert payload is not None
+    assert access_token_matches_user(payload, session_version=3) is True
+    assert access_token_matches_user(payload, session_version=4) is False
+
+    preauth = decode_access_token(create_preauth_token("user-1", session_version=3))
+    assert preauth is not None
+    assert access_token_matches_user(preauth, session_version=3) is False
+
+
+def test_rows_to_drop_respects_cap() -> None:
+    from app.services.event_retention import rows_to_drop
+
+    assert rows_to_drop(100, 100) == 0
+    assert rows_to_drop(50_100, 50_000) == 100
+    assert rows_to_drop(80_000, 50_000) == 5_000
+
+
+def test_totp_and_recovery_round_trip() -> None:
+    import pyotp
+
+    from app.totp import consume_recovery, new_recovery_codes, new_secret, verify_totp
+
+    secret = new_secret()
+    code = pyotp.TOTP(secret).now()
+    assert verify_totp(secret, code) is True
+    assert verify_totp(secret, "000000") is False
+
+    plain, stored = new_recovery_codes(2)
+    updated = consume_recovery(stored, plain[0])
+    assert updated is not None
+    assert consume_recovery(updated, plain[0]) is None
+    assert consume_recovery(updated, plain[1]) is not None
+
+
+@pytest.mark.asyncio
+async def test_require_admin_blocks_password_change_pending() -> None:
+    user = User(email="admin@example.com", hashed_password="x", is_active=True, is_admin=True)
+    user.must_change_password = True
+    with pytest.raises(HTTPException) as exc:
+        await require_admin_user(user)
+    assert exc.value.status_code == 403
+    assert exc.value.detail == "Password change required"
+
+
 def test_static_enrollment_token(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("WATCHPOT_AGENT_ENROLLMENT_TOKEN", "static-enroll-secret")
     get_env_settings.cache_clear()

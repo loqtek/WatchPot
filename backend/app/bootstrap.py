@@ -23,9 +23,11 @@ from app.settings_keys import (
     CORS_ORIGINS,
     DEFAULT_ADMIN_EMAIL,
     DEFAULT_ADMIN_USERNAME_HINT,
+    DEFAULT_EVENT_RETENTION_MAX,
     DEPLOYMENT_STACK_MODE,
     ENRICHMENT_CONFIG,
     EXTERNAL_LOG_PATHS,
+    EVENT_RETENTION_MAX,
     HEARTBEAT_STALE_MINUTES,
     JWT_ALGORITHM,
     JWT_SECRET,
@@ -74,6 +76,7 @@ async def ensure_app_settings(
             (ALLOW_PUBLIC_REGISTRATION, "false"),
             (BOOTSTRAP_VERSION, "1"),
             (HEARTBEAT_STALE_MINUTES, "10"),
+            (EVENT_RETENTION_MAX, str(DEFAULT_EVENT_RETENTION_MAX)),
             (SIEM_INTEGRATIONS, config_to_json(DEFAULT_INTEGRATIONS)),
             (ENRICHMENT_CONFIG, enrichment_config_to_json(DEFAULT_ENRICHMENT_CONFIG)),
         ]
@@ -87,6 +90,8 @@ async def ensure_post_bootstrap_settings(session: AsyncSession) -> None:
     """Insert newer app_settings keys on existing databases (first install gets these via ensure_app_settings)."""
     if not await _has_setting(session, HEARTBEAT_STALE_MINUTES):
         session.add(AppSetting(key=HEARTBEAT_STALE_MINUTES, value="10"))
+    if not await _has_setting(session, EVENT_RETENTION_MAX):
+        session.add(AppSetting(key=EVENT_RETENTION_MAX, value=str(DEFAULT_EVENT_RETENTION_MAX)))
     if not await _has_setting(session, SIEM_INTEGRATIONS):
         session.add(AppSetting(key=SIEM_INTEGRATIONS, value=config_to_json(DEFAULT_INTEGRATIONS)))
     else:
@@ -116,6 +121,7 @@ async def ensure_admin_user(session: AsyncSession) -> None:
         hashed_password=hash_secret(password),
         is_active=True,
         is_admin=True,
+        must_change_password=True,
     )
     session.add(user)
     await session.flush()
@@ -123,7 +129,7 @@ async def ensure_admin_user(session: AsyncSession) -> None:
     if get_env_settings().log_bootstrap_password_enabled():
         border = "=" * 72
         log.warning(border)
-        log.warning("watchPot INITIAL ADMIN — sign in with this account once, then change the password.")
+        log.warning("watchPot INITIAL ADMIN — sign in once. The app will require a new password before anything else.")
         log.warning("  Username / email: %s  (you may also type: wpadmin)", DEFAULT_ADMIN_EMAIL)
         log.warning("  Password: %s", password)
         log.warning(border)

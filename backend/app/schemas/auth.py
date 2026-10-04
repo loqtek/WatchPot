@@ -38,6 +38,8 @@ class UserOut(BaseModel):
     is_active: bool
     is_admin: bool
     timezone: str
+    must_change_password: bool = False
+    totp_enabled: bool = False
 
     model_config = {"from_attributes": True}
 
@@ -47,9 +49,35 @@ class ProfileUpdate(BaseModel):
 
 
 class SessionOut(BaseModel):
-    csrf_token: str
+    csrf_token: str | None = None
     token_type: str = "cookie"
     local_agent: dict[str, object] | None = None
+    totp_required: bool = False
+    must_change_password: bool = False
+
+
+class CurrentPassword(BaseModel):
+    current_password: str = Field(min_length=1)
+
+
+class TotpCode(BaseModel):
+    code: str = Field(min_length=6, max_length=32)
+
+
+class TotpSetupOut(BaseModel):
+    secret: str
+    otpauth_uri: str
+    qr_svg: str
+
+
+class TotpConfirmOut(BaseModel):
+    totp_enabled: bool = True
+    recovery_codes: list[str]
+
+
+class TotpDisable(BaseModel):
+    current_password: str = Field(min_length=1)
+    code: str = Field(min_length=6, max_length=32)
 
 
 class Token(SessionOut):

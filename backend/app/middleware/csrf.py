@@ -11,6 +11,7 @@ _EXEMPT_PREFIXES = (
     "/api/auth/login",
     "/api/auth/register",
     "/api/auth/csrf",
+    "/api/auth/totp/verify",
     "/api/public/agent",
     "/api/agent/v1",
     "/health",

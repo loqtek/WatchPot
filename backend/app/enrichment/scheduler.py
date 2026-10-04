@@ -14,6 +14,7 @@ from app.database import async_session_factory, commit_session
 from app.enrichment.cve import sync_cve_cache
 from app.enrichment.ip_intel import scan_events_for_ips
 from app.enrichment.worker import batch_reenrich
+from app.services.event_retention import enforce_event_retention
 from app.models.enrichment_schedule import EnrichmentSchedule
 
 log = logging.getLogger("watchpot.enrichment.scheduler")
@@ -92,8 +93,11 @@ async def enrichment_scheduler_loop() -> None:
         try:
             await asyncio.sleep(POLL_INTERVAL_SEC)
             async with async_session_factory() as session:
+                removed = await enforce_event_retention(session)
                 n = await run_due_schedules(session)
                 await commit_session(session)
+                if removed:
+                    log.info("event retention removed %s rows", removed)
                 if n:
                     log.info("ran %s enrichment schedule(s)", n)
         except asyncio.CancelledError:

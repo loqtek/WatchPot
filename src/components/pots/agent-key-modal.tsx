@@ -110,8 +110,8 @@ export function AgentKeyModal({ open, agentKey, potId, potName, enrollmentToken,
       aria-modal="true"
       aria-labelledby="agent-key-modal-title"
     >
-      <div className="absolute inset-0 bg-zinc-950/80 backdrop-blur-sm" aria-hidden />
-      <div className="relative z-10 w-full max-w-2xl rounded-2xl border border-emerald-500/30 bg-zinc-900 shadow-2xl shadow-black/50">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" aria-hidden />
+      <div className="relative z-10 w-full max-w-2xl rounded-2xl border border-line bg-surface shadow-2xl shadow-black/50">
         <div className="space-y-5 px-6 py-6">
           <div>
             <div className="flex items-center gap-2 text-emerald-400/90">
@@ -134,7 +134,7 @@ export function AgentKeyModal({ open, agentKey, potId, potName, enrollmentToken,
               seconds.
             </p>
             {localhostApi ? (
-              <p className="mt-2 rounded-lg border border-amber-500/30 bg-amber-950/25 px-3 py-2 text-xs leading-relaxed text-amber-100/90">
+              <p className="mt-2 rounded-lg border border-warn-border bg-warn px-3 py-2 text-xs leading-relaxed text-amber-100/90">
                 The UI is using <code className="text-amber-200">{defaultApiUrl}</code>, which remote hosts cannot
                 reach. Enter your public control-plane host below — the install command updates automatically.
               </p>
@@ -171,7 +171,7 @@ export function AgentKeyModal({ open, agentKey, potId, potName, enrollmentToken,
             command={logsCommand}
           />
 
-          <div className="rounded-lg border border-amber-500/25 bg-amber-950/20 px-3 py-3">
+          <div className="rounded-lg border border-warn-border bg-warn px-3 py-3">
             <p className="text-xs leading-relaxed text-amber-100/85">
               The agent token is embedded in the command above and shown only once. Save it if you need to reinstall
               later, or rotate the key from the pot page.
@@ -203,8 +203,8 @@ export WATCHPOT_WORK_DIR="/var/lib/watchpot"`}
             disabled={closeStage === 2}
             className={cn(
               "w-full transition-colors duration-200",
-              closeStage === 0 && "bg-emerald-600 text-white hover:bg-emerald-500 border border-emerald-500/80",
-              closeStage === 1 && "bg-amber-500 text-zinc-950 hover:bg-amber-400 border border-amber-400",
+              closeStage === 0 && "bg-primary text-on-primary hover:bg-primary-hover",
+              closeStage === 1 && "bg-amber-500 text-ink hover:bg-amber-400 border border-amber-400",
               closeStage === 2 && "bg-zinc-700 text-zinc-300 border border-zinc-600",
             )}
           >

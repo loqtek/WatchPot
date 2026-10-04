@@ -45,7 +45,7 @@ async def ensure_connected(
         if wait_for_registration and (not settings.pot_id.strip() or not settings.agent_token.strip()):
             if not logged_waiting_creds:
                 log.info(
-                    "Waiting for local agent registration (sign in to the UI with WATCHPOT_AUTO_LOCAL_AGENT enabled)…"
+                    "Waiting for this control plane to register the local agent and write /agent/.env …"
                 )
                 logged_waiting_creds = True
             await asyncio.sleep(2)

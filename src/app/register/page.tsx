@@ -48,7 +48,7 @@ export default function RegisterPage() {
       footer={
         <p>
           Already have an account?{" "}
-          <Link href="/login" className="text-emerald-500 hover:text-emerald-400 font-medium">
+          <Link href="/login" className="font-medium text-ink underline decoration-ink/25 underline-offset-4 hover:decoration-signal">
             Sign in
           </Link>
         </p>
@@ -93,7 +93,7 @@ export default function RegisterPage() {
         <Button type="submit" className="w-full" disabled={submitting}>
           {submitting ? (
             <>
-              <Spinner size="sm" className="mr-2 border-t-zinc-100" />
+              <Spinner size="sm" className="mr-2 border-white/30 border-t-white" />
               Creating account…
             </>
           ) : (

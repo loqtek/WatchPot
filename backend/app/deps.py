@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models.pot import Pot
 from app.models.user import User
-from app.security import decode_access_token, verify_secret
+from app.security import access_token_matches_user, decode_access_token, verify_secret
 from app.session_cookies import session_token_from_request
 
 security = HTTPBearer(auto_error=False)
@@ -43,11 +43,15 @@ async def get_current_user(
     user = result.scalar_one_or_none()
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+    if not access_token_matches_user(payload, session_version=user.session_version or 0):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session expired")
     request.state.user_id = str(user.id)
     return user
 
 
 async def require_admin_user(user: Annotated[User, Depends(get_current_user)]) -> User:
+    if user.must_change_password:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Password change required")
     if not user.is_admin:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin privileges required")
     return user

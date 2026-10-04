@@ -64,8 +64,8 @@ export function StackDeployedModal({ open, potId, info, onClose }: StackDeployed
       aria-modal="true"
       aria-labelledby="stack-deployed-title"
     >
-      <div className="absolute inset-0 bg-zinc-950/80 backdrop-blur-sm" aria-hidden />
-      <div className="relative z-10 w-full max-w-md rounded-2xl border border-emerald-500/30 bg-zinc-900 shadow-2xl shadow-black/50">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" aria-hidden />
+      <div className="relative z-10 w-full max-w-md rounded-2xl border border-line bg-surface shadow-2xl shadow-black/50">
         <div className="space-y-4 px-6 py-6">
           <div className="flex items-start gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10">

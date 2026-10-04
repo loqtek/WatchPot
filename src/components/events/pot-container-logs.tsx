@@ -151,8 +151,8 @@ export function PotContainerLogs({ potId, potName, autoLoad = true }: PotContain
                   className={cn(
                     "rounded-lg border px-3 py-2 text-left text-sm transition-colors",
                     selected?.name === c.name
-                      ? "border-emerald-600/50 bg-emerald-500/10 text-emerald-200"
-                      : "border-zinc-800 bg-zinc-950/40 text-zinc-300 hover:border-zinc-700",
+                      ? "border-ink bg-surface text-ink ring-1 ring-ink"
+                      : "border-line bg-surface text-ink hover:bg-recessed",
                   )}
                 >
                   <span className="font-medium">{c.name || c.id}</span>

@@ -1,6 +1,10 @@
+import json
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+RAW_LOG_MAX = 65_536
+PAYLOAD_JSON_MAX = 262_144
 
 
 class AgentHeartbeatIn(BaseModel):
@@ -26,6 +30,26 @@ class AgentEventItem(BaseModel):
     channel: str | None = Field(default=None, max_length=32)
     payload: dict | None = None
     raw_log: str | None = None
+
+    @field_validator("raw_log")
+    @classmethod
+    def cap_raw_log(cls, value: str | None) -> str | None:
+        if value is not None and len(value) > RAW_LOG_MAX:
+            return value[:RAW_LOG_MAX]
+        return value
+
+    @field_validator("payload")
+    @classmethod
+    def cap_payload(cls, value: dict | None) -> dict | None:
+        if value is None:
+            return None
+        try:
+            encoded = json.dumps(value)
+        except (TypeError, ValueError):
+            return {"truncated": True}
+        if len(encoded) > PAYLOAD_JSON_MAX:
+            return {"truncated": True}
+        return value
 
 
 class AgentEventBatchIn(BaseModel):

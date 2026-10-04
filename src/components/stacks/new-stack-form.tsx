@@ -262,18 +262,13 @@ export function NewStackForm({ potId }: NewStackFormProps) {
                 aria-label="Search templates"
               />
             </div>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="seg seg-sm" role="group" aria-label="Template category">
               {CATEGORIES.map((cat) => (
                 <button
                   key={cat}
                   type="button"
+                  aria-pressed={categoryFilter === cat}
                   onClick={() => setCategoryFilter(cat)}
-                  className={cn(
-                    "rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors",
-                    categoryFilter === cat
-                      ? "border-emerald-600/50 bg-emerald-500/10 text-emerald-300"
-                      : "border-zinc-800 text-zinc-500 hover:border-zinc-700 hover:text-zinc-300",
-                  )}
                 >
                   {cat === "all" ? "All" : CATEGORY_LABELS[cat]}
                 </button>
@@ -291,8 +286,8 @@ export function NewStackForm({ potId }: NewStackFormProps) {
                     className={cn(
                       "w-full rounded-xl border px-3 py-3 text-left transition-colors",
                       templateId === t.id
-                        ? "border-emerald-600/60 bg-emerald-500/5 ring-1 ring-emerald-500/20"
-                        : "border-zinc-800/90 bg-zinc-950/30 hover:border-zinc-700 hover:bg-zinc-900/40",
+                        ? "border-ink bg-surface ring-1 ring-ink"
+                        : "border-line bg-surface hover:bg-recessed",
                     )}
                   >
                     <div className="flex flex-wrap items-start justify-between gap-2">
@@ -402,7 +397,7 @@ export function NewStackForm({ potId }: NewStackFormProps) {
                           id={`tweak-${tw.key}`}
                           value={tweakValues[tw.key] ?? tw.default}
                           onChange={(e) => onTweakChange(tw.key, e.target.value)}
-                          className="mt-1 flex h-10 w-full rounded-lg border border-zinc-800 bg-zinc-950/80 px-3 text-sm text-zinc-100"
+                          className="mt-1 flex h-11 w-full rounded-xl border border-line bg-field px-3.5 text-sm text-ink"
                         >
                           {tw.options?.map((o) => (
                             <option key={o.value} value={o.value}>
@@ -528,7 +523,7 @@ export function NewStackForm({ potId }: NewStackFormProps) {
       <button
         type="button"
         onClick={() => setShowAdvanced((s) => !s)}
-        className="flex w-full items-center justify-between rounded-lg border border-zinc-800/80 px-4 py-3 text-sm text-zinc-400 hover:bg-zinc-900/40"
+        className="flex w-full items-center justify-between rounded-lg border border-zinc-800/80 px-4 py-3 text-sm text-zinc-400 hover:bg-hover"
       >
         <span className="flex items-center gap-2">
           <Box className="h-4 w-4" />
@@ -557,7 +552,7 @@ export function NewStackForm({ potId }: NewStackFormProps) {
         <Button type="submit" disabled={busy || !validation.ok || !name.trim()}>
           {busy ? (
             <>
-              <Spinner size="sm" className="mr-2 border-t-zinc-100" />
+              <Spinner size="sm" className="mr-2 border-white/30 border-t-white" />
               {deployPhase === "starting" ? "Starting containers…" : "Creating stack…"}
             </>
           ) : (

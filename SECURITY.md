@@ -14,7 +14,7 @@ Before exposing watchPot outside a lab network:
 4. **CORS** — Configure allowed origins in **Settings → CORS**; set `WATCHPOT_ALLOW_LOOPBACK_CORS=false` in production.
 5. **Metrics** — Set `WATCHPOT_METRICS_TOKEN` and scrape `/metrics` with that bearer token; do not expose metrics publicly without auth.
 6. **Registration** — Keep `allow_public_registration=false` (default) unless you explicitly want open sign-up. Login and register are rate-limited per IP.
-7. **Database** — Use strong credentials; do not ship default `watchpot:watchpot` outside compose demos.
+7. **Database** — `./setup` generates `POSTGRES_PASSWORD`. Helper databases bind to `127.0.0.1` only. Do not publish Postgres or reuse a well-known password.
 8. **Agent tokens** — Treat like passwords; store only in secret managers or restricted `.env` files (never commit).
 9. **Docker socket** — Agents with `docker.sock` access can control containers on the host; isolate honeypot hosts accordingly.
 10. **Operator access** — Authenticated operators can queue shell commands on pots via `docker exec`; restrict UI access.

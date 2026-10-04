@@ -47,6 +47,11 @@ async def lifespan(app: FastAPI):
     async with async_session_factory() as session:
         await run_bootstrap(session)
         local_agent = await reconcile_auto_local_agent(session, reason="startup")
+        from app.services.event_retention import enforce_event_retention
+
+        removed = await enforce_event_retention(session)
+        if removed:
+            log.info("Event retention removed %s old events", removed)
         await commit_session(session)
         if local_agent is not None:
             if local_agent.credentials_written:

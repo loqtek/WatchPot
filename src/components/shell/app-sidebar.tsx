@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import { Logo } from "./logo";
 import { SidebarNav } from "./sidebar-nav";
+import { ThemeToggle } from "./theme-toggle";
 import { UserMenu } from "./user-menu";
 
 export function AppSidebar({
@@ -26,18 +27,13 @@ export function AppSidebar({
   return (
     <aside
       className={cn(
-        "flex h-dvh flex-col overflow-hidden border-r border-zinc-800/90 bg-zinc-950",
-        collapsed ? "w-[4.25rem]" : "w-60",
+        "flex h-dvh flex-col overflow-hidden border-r border-line bg-sidebar",
+        collapsed ? "w-[4.5rem]" : "w-[15.5rem]",
         className,
       )}
       aria-label="Application sidebar"
     >
-      <div
-        className={cn(
-          "flex h-14 shrink-0 items-center border-b border-zinc-800/90",
-          collapsed ? "justify-center px-2" : "px-4",
-        )}
-      >
+      <div className={cn("flex h-16 shrink-0 items-center", collapsed ? "justify-center px-2" : "px-4")}>
         <Logo collapsed={collapsed} />
       </div>
 
@@ -45,17 +41,17 @@ export function AppSidebar({
         <SidebarNav collapsed={collapsed} onNavigate={onNavigate} />
       </div>
 
-      <div className="shrink-0 border-t border-zinc-800/90 bg-zinc-950">
+      <div className="shrink-0 border-t border-line bg-sidebar">
+        <div className={cn("px-2 pt-2", collapsed && "flex justify-center")}>
+          <ThemeToggle collapsed={collapsed} />
+        </div>
         {showCollapseToggle && onToggleCollapse ? (
-          <div className={cn("px-2 pt-2", collapsed && "flex justify-center")}>
+          <div className={cn("px-2", collapsed && "flex justify-center")}>
             <Button
               type="button"
               variant="ghost"
               size={collapsed ? "icon" : "md"}
-              className={cn(
-                "text-zinc-500 hover:text-zinc-300",
-                !collapsed && "w-full justify-start",
-              )}
+              className={cn("text-faint hover:text-ink", !collapsed && "w-full justify-start")}
               onClick={onToggleCollapse}
               aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
               title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
@@ -71,13 +67,7 @@ export function AppSidebar({
             </Button>
           </div>
         ) : null}
-        <UserMenu
-          user={user}
-          loading={loading}
-          onLogout={logout}
-          collapsed={collapsed}
-          className="border-t-0"
-        />
+        <UserMenu user={user} loading={loading} onLogout={logout} collapsed={collapsed} className="border-t-0" />
       </div>
     </aside>
   );
