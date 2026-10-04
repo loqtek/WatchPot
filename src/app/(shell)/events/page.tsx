@@ -107,7 +107,7 @@ export default function EventsPage() {
               id="pot-select"
               value={potFilter}
               onChange={(e) => setPotFilter(e.target.value)}
-              className="mt-1 flex h-10 w-full rounded-lg border border-zinc-800 bg-zinc-950/80 px-3 text-sm text-zinc-100"
+              className="mt-1 flex h-11 w-full rounded-xl border border-line bg-field px-3.5 text-sm text-ink"
             >
               <option value="">All pots</option>
               {(pots ?? []).map((p) => (
@@ -200,7 +200,7 @@ export default function EventsPage() {
                 <div key={e.id} className="rounded-lg border border-zinc-800/90 bg-zinc-950/50 overflow-hidden">
                   <button
                     type="button"
-                    className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-zinc-900/50"
+                    className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-hover"
                     onClick={() => setExpandedId((id) => (id === e.id ? null : e.id))}
                   >
                     <span className="flex items-center gap-2 min-w-0">
@@ -272,7 +272,7 @@ export default function EventsPage() {
                     return (
                       <Fragment key={e.id}>
                         <Tr
-                          className={cn(expandable && "cursor-pointer hover:bg-zinc-900/30")}
+                          className={cn(expandable && "cursor-pointer hover:bg-hover")}
                           onClick={() => expandable && setExpandedId(open ? null : e.id)}
                         >
                           <Td className="w-8 text-zinc-600">

@@ -122,7 +122,7 @@ export function TotpCard() {
               />
             </div>
             <Button type="submit" variant="outline" size="sm" disabled={busy} className="w-fit">
-              {busy ? <Spinner size="sm" className="mr-2 border-t-zinc-100" /> : null}
+              {busy ? <Spinner size="sm" className="mr-2 border-white/30 border-t-white" /> : null}
               Turn off authenticator
             </Button>
           </form>
@@ -130,7 +130,7 @@ export function TotpCard() {
           <form onSubmit={confirmSetup} className="grid gap-4 sm:grid-cols-[auto_1fr] sm:items-start">
             <img
               alt="Authenticator QR code"
-              className="h-40 w-40 rounded-md bg-white p-2"
+              className="h-40 w-40 rounded-md bg-surface p-2"
               src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(setup.qr_svg)}`}
             />
             <div className="space-y-3">
@@ -151,7 +151,7 @@ export function TotpCard() {
                 />
               </div>
               <Button type="submit" size="sm" disabled={busy}>
-                {busy ? <Spinner size="sm" className="mr-2 border-t-zinc-100" /> : null}
+                {busy ? <Spinner size="sm" className="mr-2 border-white/30 border-t-white" /> : null}
                 Confirm authenticator
               </Button>
             </div>
@@ -170,13 +170,13 @@ export function TotpCard() {
               />
             </div>
             <Button type="submit" size="sm" disabled={busy} className="w-fit">
-              {busy ? <Spinner size="sm" className="mr-2 border-t-zinc-100" /> : null}
+              {busy ? <Spinner size="sm" className="mr-2 border-white/30 border-t-white" /> : null}
               Set up authenticator
             </Button>
           </form>
         )}
         {recovery ? (
-          <div className="rounded-lg border border-amber-900/60 bg-amber-950/30 p-3">
+          <div className="rounded-lg border border-warn-border bg-warn p-3">
             <p className="text-sm text-amber-200">
               Save these recovery codes. Each one works once if you lose the authenticator.
             </p>

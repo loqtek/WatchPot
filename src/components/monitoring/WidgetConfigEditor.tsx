@@ -45,7 +45,7 @@ function Field({
 }
 
 const inputClass =
-  "w-full rounded-lg border border-zinc-800 bg-zinc-950 px-2.5 py-1.5 text-sm text-zinc-100 outline-none focus:border-emerald-500/40 focus:ring-1 focus:ring-emerald-500/20";
+  "w-full rounded-xl border border-line bg-field px-3 py-2 text-sm text-ink outline-none focus:border-ink focus:ring-2 focus:ring-ink/15";
 
 export function WidgetConfigEditor({ widget, open, onClose, onApply }: Props) {
   const [title, setTitle] = useState(widget.title);
@@ -97,7 +97,7 @@ export function WidgetConfigEditor({ widget, open, onClose, onApply }: Props) {
         onClick={onClose}
       />
       <aside
-        className="fixed inset-y-0 right-0 z-[130] flex w-full max-w-sm flex-col border-l border-zinc-800 bg-zinc-950 shadow-2xl shadow-black/60"
+        className="fixed inset-y-0 right-0 z-[130] flex w-full max-w-sm flex-col border-l border-line bg-surface shadow-2xl shadow-black/60"
         role="dialog"
         aria-labelledby="widget-config-title"
       >

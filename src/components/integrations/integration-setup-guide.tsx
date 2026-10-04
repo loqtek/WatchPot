@@ -57,7 +57,7 @@ export function IntegrationSetupGuide({ provider }: { provider: IntegrationProvi
             {guide.steps.map((step) => (
               <div
                 key={step.title}
-                className="rounded-md border border-zinc-800/70 bg-zinc-900/40 px-4 py-3"
+                className="rounded-md border border-zinc-800/70 bg-surface px-4 py-3"
               >
                 <h4 className="font-medium text-zinc-100">{step.title}</h4>
                 <p className="mt-1 text-zinc-400 leading-relaxed">{step.description}</p>
@@ -80,7 +80,7 @@ export function IntegrationSetupGuide({ provider }: { provider: IntegrationProvi
               {guide.watchpotFields.map((f) => (
                 <div
                   key={f.label}
-                  className="rounded border border-zinc-800/60 px-3 py-2 bg-zinc-900/30"
+                  className="rounded border border-zinc-800/60 px-3 py-2 bg-surface"
                 >
                   <dt className="text-xs font-medium text-zinc-300">{f.label}</dt>
                   <dd className="text-xs text-zinc-500 mt-0.5">{f.mapsTo}</dd>

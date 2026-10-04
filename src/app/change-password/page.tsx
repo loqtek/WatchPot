@@ -112,7 +112,7 @@ export default function ChangePasswordPage() {
           <Button type="submit" className="w-full" disabled={submitting}>
             {submitting ? (
               <>
-                <Spinner size="sm" className="mr-2 border-t-zinc-100" />
+                <Spinner size="sm" className="mr-2 border-white/30 border-t-white" />
                 Saving…
               </>
             ) : (

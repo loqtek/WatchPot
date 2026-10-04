@@ -142,7 +142,7 @@ export default function ToolsPage() {
                   id="tool-pot"
                   value={selectedPot}
                   onChange={(e) => setSelectedPot(e.target.value)}
-                  className="flex h-10 w-full rounded-lg border border-zinc-800 bg-zinc-950/80 px-3 text-sm text-zinc-100 focus-visible:border-emerald-600/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/25"
+                  className="flex h-11 w-full rounded-xl border border-line bg-field px-3.5 text-sm text-ink focus-visible:border-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/15"
                 >
                   <option value="">Select a pot…</option>
                   {potList.map((p) => (

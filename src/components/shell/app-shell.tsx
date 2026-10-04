@@ -37,27 +37,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const desktopCollapsed = sidebarReady && sidebarCollapsed;
 
   return (
-    <div className="min-h-dvh bg-zinc-950 text-zinc-100">
+    <div className="min-h-dvh bg-paper text-ink">
       <AppSidebar
         collapsed={desktopCollapsed}
         onToggleCollapse={toggleSidebar}
-        className={cn(
-          "fixed inset-y-0 left-0 z-30 hidden transition-[width] duration-200 ease-in-out md:flex",
-        )}
+        className="fixed inset-y-0 left-0 z-30 hidden transition-[width] duration-200 ease-in-out md:flex"
       />
 
       <div
         className={cn(
           "flex min-h-dvh min-w-0 flex-col transition-[padding] duration-200 ease-in-out",
-          desktopCollapsed ? "md:pl-[4.25rem]" : "md:pl-60",
+          desktopCollapsed ? "md:pl-[4.5rem]" : "md:pl-[15.5rem]",
         )}
       >
-        <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center justify-between gap-3 border-b border-zinc-800/90 bg-zinc-950/95 px-4 backdrop-blur-md md:hidden">
+        <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center justify-between gap-3 border-b border-line bg-sidebar/90 px-4 backdrop-blur-md md:hidden">
           <Button
             type="button"
             variant="ghost"
             size="icon"
-            className="text-zinc-400"
+            className="text-muted"
             aria-label={mobileOpen ? "Close menu" : "Open menu"}
             onClick={() => setMobileOpen((open) => !open)}
           >
@@ -71,19 +69,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <>
             <button
               type="button"
-              className="fixed inset-0 z-40 bg-black/70 backdrop-blur-[2px] md:hidden"
+              className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px] md:hidden"
               aria-label="Close menu"
               onClick={() => setMobileOpen(false)}
             />
             <AppSidebar
               onNavigate={() => setMobileOpen(false)}
               showCollapseToggle={false}
-              className="fixed inset-y-0 left-0 z-50 w-[min(18rem,88vw)] shadow-2xl shadow-black/50 md:hidden"
+              className="fixed inset-y-0 left-0 z-50 w-[min(18rem,88vw)] shadow-pop md:hidden"
             />
           </>
         ) : null}
 
-        <main className="mx-auto w-full max-w-[min(100%,88rem)] flex-1 px-3 py-5 sm:px-4 sm:py-6 md:px-5 md:py-7 lg:px-6 lg:py-8">
+        <main className="mx-auto w-full max-w-[min(100%,88rem)] flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
           {children}
         </main>
       </div>

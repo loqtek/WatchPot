@@ -42,7 +42,6 @@ function StatCard({
   value,
   sub,
   icon: Icon,
-  tone,
 }: {
   label: string;
   value: string | number;
@@ -50,29 +49,17 @@ function StatCard({
   icon: React.ComponentType<{ className?: string }>;
   tone?: "emerald" | "sky" | "amber" | "zinc";
 }) {
-  const tones = {
-    emerald: "border-emerald-500/20 bg-emerald-500/[0.04]",
-    sky: "border-sky-500/20 bg-sky-500/[0.04]",
-    amber: "border-amber-500/20 bg-amber-500/[0.04]",
-    zinc: "border-zinc-700/50 bg-zinc-900/30",
-  };
-
-  const iconColor = {
-    emerald: "text-emerald-500",
-    sky: "text-sky-500",
-    amber: "text-amber-500",
-    zinc: "text-zinc-500",
-  }[tone ?? "zinc"];
-
   return (
-    <Card className={cn("border", tones[tone ?? "zinc"])}>
+    <Card>
       <CardContent className="p-5">
-        <div className="flex items-start justify-between gap-2">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">{label}</p>
-          <Icon className={cn("h-4 w-4 shrink-0", iconColor)} aria-hidden />
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-[13px] font-medium text-muted">{label}</p>
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-chip text-ink">
+            <Icon className="h-4 w-4" aria-hidden />
+          </span>
         </div>
-        <p className="mt-2 text-2xl font-semibold tabular-nums tracking-tight text-zinc-50">{value}</p>
-        {sub ? <p className="mt-1 text-xs text-zinc-500">{sub}</p> : null}
+        <p className="mt-3 text-[1.75rem] font-semibold tabular-nums tracking-[-0.03em] text-ink">{value}</p>
+        {sub ? <p className="mt-1 text-xs text-faint">{sub}</p> : null}
       </CardContent>
     </Card>
   );
@@ -92,13 +79,13 @@ function PotList({
   }
   return (
     <div>
-      <p className="px-4 pt-3 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">{title}</p>
-      <ul className="divide-y divide-zinc-800/80">
+      <p className="px-4 pt-3 text-xs font-medium text-faint">{title}</p>
+      <ul className="divide-y divide-black/[0.06]">
         {rows.map((p) => (
           <li key={p.id}>
             <Link
               href={`/pots/${p.id}`}
-              className="flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-zinc-800/25"
+              className="flex items-center justify-between gap-3 px-4 py-3.5 transition-colors hover:bg-recessed"
             >
               <div className="min-w-0">
                 <p className="truncate font-medium text-zinc-100">{p.name}</p>
@@ -138,20 +125,9 @@ export function OverviewDashboard({ range, onRangeChange }: OverviewDashboardPro
           title="Overview"
           description="Fleet health, honeypot activity, and security event telemetry across your deployment."
         />
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
-          <span className="mr-1 text-xs text-zinc-500">Period</span>
+        <div className="seg shrink-0" role="group" aria-label="Period">
           {DASHBOARD_RANGES.map((r) => (
-            <button
-              key={r.key}
-              type="button"
-              onClick={() => onRangeChange(r.key)}
-              className={cn(
-                "rounded-lg border px-3 py-1.5 text-sm font-medium tabular-nums transition-colors",
-                range === r.key
-                  ? "border-emerald-600/50 bg-emerald-500/10 text-emerald-300"
-                  : "border-zinc-800 text-zinc-500 hover:border-zinc-700 hover:text-zinc-300",
-              )}
-            >
+            <button key={r.key} type="button" aria-pressed={range === r.key} onClick={() => onRangeChange(r.key)}>
               {r.label}
             </button>
           ))}
@@ -216,11 +192,13 @@ export function OverviewDashboard({ range, onRangeChange }: OverviewDashboardPro
               icon={Layers}
               tone="zinc"
             />
-            <Card className="border-amber-500/20 bg-amber-500/[0.04] sm:col-span-2 lg:col-span-2">
+            <Card className="sm:col-span-2 lg:col-span-2">
               <CardContent className="p-5">
                 <div className="flex items-start justify-between">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">vs prior period</p>
-                  <Shield className="h-4 w-4 text-amber-500/80" />
+                  <p className="text-[13px] font-medium text-muted">vs prior period</p>
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-chip text-ink">
+                    <Shield className="h-4 w-4" />
+                  </span>
                 </div>
                 <div className="mt-2 flex items-center gap-2">
                   {delta >= 0 ? (

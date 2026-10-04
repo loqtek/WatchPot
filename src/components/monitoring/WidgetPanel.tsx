@@ -26,8 +26,8 @@ export function WidgetPanel({
   return (
     <div
       className={cn(
-        "group/panel relative flex h-full flex-col overflow-hidden rounded-lg border border-zinc-800/80 bg-zinc-900/60",
-        editMode && "ring-1 ring-emerald-500/25",
+        "group/panel relative flex h-full flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-card",
+        editMode && "ring-1 ring-ink/20",
         !showHeader && "border-zinc-800/60",
         className,
       )}
@@ -35,7 +35,7 @@ export function WidgetPanel({
       {showHeader ? (
         <div
           className={cn(
-            "flex shrink-0 items-center justify-between gap-1 border-b border-zinc-800/70 bg-zinc-900/90 px-2 py-1",
+            "flex shrink-0 items-center justify-between gap-1 border-b border-line bg-recessed px-3 py-2",
             editMode && "panel-drag-handle cursor-grab active:cursor-grabbing",
           )}
         >
@@ -87,7 +87,7 @@ export function WidgetPanel({
           {onConfigure ? (
             <button
               type="button"
-              className="rounded bg-zinc-900/90 p-1 text-zinc-400 shadow hover:text-zinc-100"
+              className="rounded bg-surface p-1 text-zinc-400 shadow hover:text-zinc-100"
               title="Panel settings"
               onClick={onConfigure}
             >
@@ -97,7 +97,7 @@ export function WidgetPanel({
           {editMode && onRemove ? (
             <button
               type="button"
-              className="rounded bg-zinc-900/90 p-1 text-zinc-400 shadow hover:text-red-400"
+              className="rounded bg-surface p-1 text-zinc-400 shadow hover:text-red-400"
               title="Remove"
               onClick={onRemove}
             >

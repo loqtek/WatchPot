@@ -80,7 +80,7 @@ export function EventListItem({ event, compact = false }: EventListItemProps) {
         }}
         className={cn(
           "flex items-start gap-3 px-3 py-2.5",
-          expandable && "cursor-pointer hover:bg-zinc-900/40 transition-colors",
+          expandable && "cursor-pointer hover:bg-hover transition-colors",
         )}
       >
         <EventIcon eventType={event.event_type} />

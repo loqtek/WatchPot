@@ -211,7 +211,7 @@ export function UsersPanel({ currentUserId }: Props) {
             <Button type="submit" disabled={creating} className="w-full">
               {creating ? (
                 <>
-                  <Spinner size="sm" className="mr-2 border-t-zinc-100" />
+                  <Spinner size="sm" className="mr-2 border-white/30 border-t-white" />
                   Creating…
                 </>
               ) : (
@@ -337,7 +337,7 @@ export function UsersPanel({ currentUserId }: Props) {
 
       {resetUser ? (
         <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm xl:col-span-2">
-          <div className="w-full max-w-sm rounded-xl border border-zinc-800 bg-zinc-950 p-5 shadow-2xl">
+          <div className="w-full max-w-sm rounded-2xl border border-line bg-surface p-5 shadow-2xl">
             <h3 className="text-base font-semibold text-zinc-100">Reset password</h3>
             <p className="mt-1 text-sm text-zinc-500">
               Set a new password for <span className="text-zinc-300">{resetUser.email}</span>.

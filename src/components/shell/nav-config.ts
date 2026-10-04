@@ -21,75 +21,101 @@ export type NavItem = {
   isActive: (pathname: string) => boolean;
 };
 
-export const mainNav: NavItem[] = [
+export type NavSection = {
+  id: string;
+  label: string;
+  items: NavItem[];
+};
+
+export const navSections: NavSection[] = [
   {
-    href: "/dashboard",
-    label: "Home",
-    shortLabel: "Home",
-    icon: LayoutDashboard,
-    isActive: (p) => p === "/dashboard" || p === "/",
+    id: "operate",
+    label: "Operate",
+    items: [
+      {
+        href: "/dashboard",
+        label: "Home",
+        shortLabel: "Home",
+        icon: LayoutDashboard,
+        isActive: (p) => p === "/dashboard" || p === "/",
+      },
+      {
+        href: "/monitoring",
+        label: "Dashboard",
+        shortLabel: "Dash",
+        icon: BarChart3,
+        isActive: (p) => p.startsWith("/monitoring"),
+      },
+      {
+        href: "/pots",
+        label: "Pots",
+        shortLabel: "Pots",
+        icon: Boxes,
+        isActive: (p) => p.startsWith("/pots"),
+      },
+      {
+        href: "/snapshots",
+        label: "Backups",
+        shortLabel: "Backup",
+        icon: Camera,
+        isActive: (p) => p.startsWith("/snapshots"),
+      },
+    ],
   },
   {
-    href: "/monitoring",
-    label: "Dashboard",
-    shortLabel: "Dash",
-    icon: BarChart3,
-    isActive: (p) => p.startsWith("/monitoring"),
+    id: "observe",
+    label: "Observe",
+    items: [
+      {
+        href: "/events",
+        label: "Events",
+        shortLabel: "Events",
+        icon: Activity,
+        isActive: (p) => p.startsWith("/events"),
+      },
+      {
+        href: "/log-wall",
+        label: "Log wall",
+        shortLabel: "Logs",
+        icon: ScrollText,
+        isActive: (p) => p.startsWith("/log-wall"),
+      },
+      {
+        href: "/threat-intel",
+        label: "Threat intel",
+        shortLabel: "Intel",
+        icon: Shield,
+        isActive: (p) => p.startsWith("/threat-intel"),
+      },
+    ],
   },
   {
-    href: "/pots",
-    label: "Pots",
-    shortLabel: "Pots",
-    icon: Boxes,
-    isActive: (p) => p.startsWith("/pots"),
-  },
-  {
-    href: "/snapshots",
-    label: "Backups",
-    shortLabel: "Backup",
-    icon: Camera,
-    isActive: (p) => p.startsWith("/snapshots"),
-  },
-  {
-    href: "/events",
-    label: "Events",
-    shortLabel: "Events",
-    icon: Activity,
-    isActive: (p) => p.startsWith("/events"),
-  },
-  {
-    href: "/log-wall",
-    label: "Log wall",
-    shortLabel: "Logs",
-    icon: ScrollText,
-    isActive: (p) => p.startsWith("/log-wall"),
-  },
-  {
-    href: "/threat-intel",
-    label: "Threat intel",
-    shortLabel: "Intel",
-    icon: Shield,
-    isActive: (p) => p.startsWith("/threat-intel"),
-  },
-  {
-    href: "/tools",
-    label: "Tools",
-    shortLabel: "Tools",
-    icon: Wrench,
-    isActive: (p) => p.startsWith("/tools"),
-  },
-  {
-    href: "/integrations",
-    label: "Integrations",
-    shortLabel: "SIEM",
-    icon: Plug,
-    isActive: (p) => p.startsWith("/integrations"),
-  },
-  {
-    href: "/settings",
-    label: "Settings",
-    shortLabel: "Settings",
-    icon: Settings,
-    isActive: (p) => p.startsWith("/settings"),
+    id: "system",
+    label: "System",
+    items: [
+      {
+        href: "/tools",
+        label: "Tools",
+        shortLabel: "Tools",
+        icon: Wrench,
+        isActive: (p) => p.startsWith("/tools"),
+      },
+      {
+        href: "/integrations",
+        label: "Integrations",
+        shortLabel: "SIEM",
+        icon: Plug,
+        isActive: (p) => p.startsWith("/integrations"),
+      },
+      {
+        href: "/settings",
+        label: "Settings",
+        shortLabel: "Settings",
+        icon: Settings,
+        isActive: (p) => p.startsWith("/settings"),
+      },
+    ],
   },
 ];
+
+export const mainNav: NavItem[] = navSections.flatMap((section) => section.items);

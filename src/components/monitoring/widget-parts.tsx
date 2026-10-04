@@ -31,7 +31,7 @@ export function StatPanel({
   return (
     <div className="flex h-full min-h-0 flex-col justify-center px-1 py-0.5">
       <div className="flex items-start justify-between gap-2">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">{label}</p>
+        <p className="text-xs font-medium text-zinc-500">{label}</p>
         {Icon ? <Icon className="h-3.5 w-3.5 shrink-0 text-zinc-600" aria-hidden /> : null}
       </div>
       <p className="mt-0.5 text-2xl font-semibold tabular-nums tracking-tight text-zinc-50">
@@ -80,7 +80,7 @@ export function ComparisonPanel({
   if (compact) {
     return (
       <div className="flex h-full min-h-0 flex-col justify-center px-1 py-0.5">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">24h change</p>
+        <p className="text-xs font-medium text-zinc-500">24h change</p>
         <div className="mt-0.5 flex items-center gap-1.5">
           {up ? (
             <TrendingUp className="h-3.5 w-3.5 shrink-0 text-red-400" />
@@ -100,11 +100,11 @@ export function ComparisonPanel({
   return (
     <div className="grid h-full grid-cols-2 gap-4 px-1">
       <div className="rounded-lg border border-zinc-800/60 bg-zinc-950/40 p-3">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Current period</p>
+        <p className="text-xs font-medium text-zinc-500">Current period</p>
         <p className="mt-1 text-2xl font-semibold tabular-nums text-zinc-100">{formatCount(current)}</p>
       </div>
       <div className="rounded-lg border border-zinc-800/60 bg-zinc-950/40 p-3">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Previous period</p>
+        <p className="text-xs font-medium text-zinc-500">Previous period</p>
         <p className="mt-1 text-2xl font-semibold tabular-nums text-zinc-400">{formatCount(previous)}</p>
       </div>
       <div className="col-span-2 flex items-center gap-2 border-t border-zinc-800/60 pt-3">

@@ -138,7 +138,7 @@ export default function StackEditorPage() {
                   <Button type="submit" disabled={busy}>
                     {busy ? (
                       <>
-                        <Spinner size="sm" className="mr-2 border-t-zinc-100" />
+                        <Spinner size="sm" className="mr-2 border-white/30 border-t-white" />
                         Saving…
                       </>
                     ) : (
@@ -171,7 +171,7 @@ export default function StackEditorPage() {
                         setCompose(r.compose_yaml);
                         setNote(`restored from r${r.revision}`);
                       }}
-                      className="w-full rounded-lg border border-zinc-800/90 bg-zinc-950/40 px-3 py-2.5 text-left text-sm transition-colors hover:border-zinc-700 hover:bg-zinc-900/50"
+                      className="w-full rounded-lg border border-zinc-800/90 bg-zinc-950/40 px-3 py-2.5 text-left text-sm transition-colors hover:border-zinc-700 hover:bg-hover"
                     >
                       <div className="flex items-center justify-between gap-2">
                         <Badge tone="info">rev {r.revision}</Badge>

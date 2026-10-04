@@ -114,7 +114,7 @@ export default function PotsPage() {
               <Button type="submit" disabled={submitting} className="w-full">
                 {submitting ? (
                   <>
-                    <Spinner size="sm" className="mr-2 border-t-zinc-100" />
+                    <Spinner size="sm" className="mr-2 border-white/30 border-t-white" />
                     Creating…
                   </>
                 ) : (
@@ -149,7 +149,7 @@ export default function PotsPage() {
                 <li key={p.id}>
                   <Link
                     href={`/pots/${p.id}`}
-                    className="group flex flex-col rounded-2xl border border-zinc-800/90 bg-zinc-900/25 p-5 shadow-sm transition-[border-color,background-color,transform] hover:border-zinc-700 hover:bg-zinc-900/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/35"
+                    className="group flex flex-col rounded-2xl border border-line bg-surface p-5 shadow-card transition-[box-shadow,transform] hover:-translate-y-px hover:shadow-lift focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/20"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 space-y-1">
@@ -167,12 +167,12 @@ export default function PotsPage() {
                       {p.last_ip ? <span>· {p.last_ip}</span> : null}
                       {p.agent_version ? <span>· agent {p.agent_version}</span> : null}
                     </div>
-                    <div className="mt-4 flex items-center justify-between border-t border-zinc-800/80 pt-4">
-                      <span className="flex items-center gap-1 text-xs font-medium text-emerald-400/90">
+                    <div className="mt-4 flex items-center justify-between border-t border-line pt-4">
+                      <span className="flex items-center gap-1 text-xs font-medium text-ink">
                         <Layers className="h-3.5 w-3.5" />
                         Manage stacks & compose
                       </span>
-                      <ChevronRight className="h-4 w-4 text-zinc-600 transition-transform group-hover:translate-x-0.5 group-hover:text-emerald-400/80" />
+                      <ChevronRight className="h-4 w-4 text-faint transition-transform group-hover:translate-x-0.5 group-hover:text-ink" />
                     </div>
                   </Link>
                 </li>

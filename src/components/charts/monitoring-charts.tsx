@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import {
   Area,
   AreaChart,
@@ -21,12 +22,10 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { useTheme } from "@/hooks/use-theme";
 import {
-  CHART_AXIS,
-  CHART_AXIS_TICK,
-  CHART_GRID,
   CHART_PALETTE,
-  CHART_TOOLTIP_STYLE,
+  chartFrame,
   formatAxisTime,
   formatCount,
   severityColor,
@@ -35,6 +34,11 @@ import {
 import { ChartContainer, ChartEmpty } from "./chart-primitives";
 
 type CountItem = { key: string; count: number };
+
+function useChartFrame() {
+  const theme = useTheme();
+  return useMemo(() => chartFrame(theme), [theme]);
+}
 
 export function DistributionPie({
   items,
@@ -45,6 +49,7 @@ export function DistributionPie({
   donut?: boolean;
   colorFn?: (key: string, i: number) => string;
 }) {
+  const frame = useChartFrame();
   if (items.length === 0) return <ChartEmpty />;
   const total = items.reduce((s, x) => s + x.count, 0);
   const rows = items.map((x) => ({ name: x.key, value: x.count, pct: total ? Math.round((x.count / total) * 100) : 0 }));
@@ -63,7 +68,7 @@ export function DistributionPie({
             outerRadius="72%"
             innerRadius={donut ? "52%" : 0}
             paddingAngle={donut ? 2 : 0}
-            stroke="#09090b"
+            stroke={frame.pieStroke}
             strokeWidth={1}
           >
             {rows.map((r, i) => (
@@ -71,7 +76,7 @@ export function DistributionPie({
             ))}
           </Pie>
           <Tooltip
-            contentStyle={CHART_TOOLTIP_STYLE}
+            contentStyle={frame.tooltip}
             formatter={(v, _n, p) => {
               const row = p?.payload as { name: string; pct: number } | undefined;
               return [`${formatCount(Number(v ?? 0))} (${row?.pct ?? 0}%)`, row?.name ?? ""];
@@ -83,7 +88,7 @@ export function DistributionPie({
             verticalAlign="middle"
             iconType="circle"
             iconSize={8}
-            wrapperStyle={{ fontSize: 11, color: "#a1a1aa", paddingLeft: 8 }}
+            wrapperStyle={{ fontSize: 11, color: frame.legend, paddingLeft: 8 }}
             formatter={(value: string) => truncateLabel(value, 18)}
           />
         </PieChart>
@@ -101,6 +106,7 @@ export function HorizontalRankBar({
   color?: string;
   maxLabelWidth?: number;
 }) {
+  const frame = useChartFrame();
   if (items.length === 0) return <ChartEmpty />;
   const max = Math.max(...items.map((x) => x.count), 1);
   const rows = [...items]
@@ -111,17 +117,17 @@ export function HorizontalRankBar({
     <ChartContainer>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={rows} layout="vertical" margin={{ left: 4, right: 16, top: 4, bottom: 4 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} horizontal={false} />
-          <XAxis type="number" stroke={CHART_AXIS} tick={CHART_AXIS_TICK} tickFormatter={formatCount} />
+          <CartesianGrid strokeDasharray="3 3" stroke={frame.grid} horizontal={false} />
+          <XAxis type="number" stroke={frame.axis} tick={frame.tick} tickFormatter={formatCount} />
           <YAxis
             type="category"
             dataKey="name"
             width={maxLabelWidth}
-            stroke={CHART_AXIS}
-            tick={{ ...CHART_AXIS_TICK, fontSize: 9 }}
+            stroke={frame.axis}
+            tick={{ ...frame.tick, fontSize: 9 }}
           />
           <Tooltip
-            contentStyle={CHART_TOOLTIP_STYLE}
+            contentStyle={frame.tooltip}
             labelFormatter={(_l, payload) => {
               const row = payload?.[0]?.payload as { full?: string } | undefined;
               return row?.full ?? _l;
@@ -142,6 +148,7 @@ export function VerticalBarChart({
   items: { name: string; count: number }[];
   color?: string;
 }) {
+  const frame = useChartFrame();
   if (items.length === 0) return <ChartEmpty />;
   const rows = items.map((x) => ({ name: truncateLabel(x.name, 14), full: x.name, count: x.count }));
 
@@ -149,11 +156,11 @@ export function VerticalBarChart({
     <ChartContainer>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={rows} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} vertical={false} />
-          <XAxis dataKey="name" stroke={CHART_AXIS} tick={{ ...CHART_AXIS_TICK, fontSize: 9 }} interval={0} angle={-25} textAnchor="end" height={48} />
-          <YAxis stroke={CHART_AXIS} tick={CHART_AXIS_TICK} tickFormatter={formatCount} width={40} />
+          <CartesianGrid strokeDasharray="3 3" stroke={frame.grid} vertical={false} />
+          <XAxis dataKey="name" stroke={frame.axis} tick={{ ...frame.tick, fontSize: 9 }} interval={0} angle={-25} textAnchor="end" height={48} />
+          <YAxis stroke={frame.axis} tick={frame.tick} tickFormatter={formatCount} width={40} />
           <Tooltip
-            contentStyle={CHART_TOOLTIP_STYLE}
+            contentStyle={frame.tooltip}
             labelFormatter={(_l, payload) => {
               const row = payload?.[0]?.payload as { full?: string } | undefined;
               return row?.full ?? _l;
@@ -168,6 +175,7 @@ export function VerticalBarChart({
 }
 
 export function TimeseriesLineChart({ points }: { points: { t: string; count: number }[] }) {
+  const frame = useChartFrame();
   if (points.length === 0) return <ChartEmpty />;
   const rows = points.map((p) => ({ t: formatAxisTime(p.t), count: p.count, full: p.t }));
 
@@ -175,11 +183,11 @@ export function TimeseriesLineChart({ points }: { points: { t: string; count: nu
     <ChartContainer>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={rows} margin={{ left: 0, right: 12, top: 8, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} vertical={false} />
-          <XAxis dataKey="t" stroke={CHART_AXIS} tick={{ ...CHART_AXIS_TICK, fontSize: 9 }} interval="preserveStartEnd" />
-          <YAxis stroke={CHART_AXIS} tick={CHART_AXIS_TICK} tickFormatter={formatCount} width={44} />
+          <CartesianGrid strokeDasharray="3 3" stroke={frame.grid} vertical={false} />
+          <XAxis dataKey="t" stroke={frame.axis} tick={{ ...frame.tick, fontSize: 9 }} interval="preserveStartEnd" />
+          <YAxis stroke={frame.axis} tick={frame.tick} tickFormatter={formatCount} width={44} />
           <Tooltip
-            contentStyle={CHART_TOOLTIP_STYLE}
+            contentStyle={frame.tooltip}
             labelFormatter={(_l, payload) => {
               const row = payload?.[0]?.payload as { full?: string } | undefined;
               return row?.full?.slice(0, 16).replace("T", " ") ?? _l;
@@ -202,6 +210,7 @@ export function AreaSeverityChart({
   severities: string[];
   series: Record<string, number[]>;
 }) {
+  const frame = useChartFrame();
   if (buckets.length === 0 || severities.length === 0) return <ChartEmpty />;
   const rows = buckets.map((t, i) => {
     const row: Record<string, string | number> = { t: formatAxisTime(t) };
@@ -213,10 +222,10 @@ export function AreaSeverityChart({
     <ChartContainer className="min-h-[180px]">
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={rows} margin={{ left: 0, right: 12, top: 8, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} vertical={false} />
-          <XAxis dataKey="t" stroke={CHART_AXIS} tick={{ ...CHART_AXIS_TICK, fontSize: 9 }} interval="preserveStartEnd" />
-          <YAxis stroke={CHART_AXIS} tick={CHART_AXIS_TICK} tickFormatter={formatCount} width={44} />
-          <Tooltip contentStyle={CHART_TOOLTIP_STYLE} />
+          <CartesianGrid strokeDasharray="3 3" stroke={frame.grid} vertical={false} />
+          <XAxis dataKey="t" stroke={frame.axis} tick={{ ...frame.tick, fontSize: 9 }} interval="preserveStartEnd" />
+          <YAxis stroke={frame.axis} tick={frame.tick} tickFormatter={formatCount} width={44} />
+          <Tooltip contentStyle={frame.tooltip} />
           <Legend wrapperStyle={{ fontSize: 11, paddingTop: 4 }} iconType="circle" iconSize={8} />
           {severities.map((s, idx) => (
             <Area
@@ -236,6 +245,7 @@ export function AreaSeverityChart({
 }
 
 export function RadarMixChart({ axes, values }: { axes: string[]; values: number[] }) {
+  const frame = useChartFrame();
   if (axes.length === 0) return <ChartEmpty />;
   const chartData = axes.map((name, i) => ({ name: truncateLabel(name, 10), v: values[i] ?? 0 }));
 
@@ -243,10 +253,10 @@ export function RadarMixChart({ axes, values }: { axes: string[]; values: number
     <ChartContainer>
       <ResponsiveContainer width="100%" height="100%">
         <RadarChart data={chartData} cx="50%" cy="50%" outerRadius="72%">
-          <PolarGrid stroke="#3f3f46" />
-          <PolarAngleAxis dataKey="name" tick={{ fontSize: 9, fill: "#a1a1aa" }} />
+          <PolarGrid stroke={frame.polar} />
+          <PolarAngleAxis dataKey="name" tick={{ fontSize: 9, fill: frame.legend }} />
           <Radar name="Mix" dataKey="v" stroke={CHART_PALETTE[0]} fill={CHART_PALETTE[0]} fillOpacity={0.25} strokeWidth={2} />
-          <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(v) => [v, "Normalized"]} />
+          <Tooltip contentStyle={frame.tooltip} formatter={(v) => [v, "Normalized"]} />
         </RadarChart>
       </ResponsiveContainer>
     </ChartContainer>

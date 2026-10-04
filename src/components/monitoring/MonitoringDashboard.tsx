@@ -170,7 +170,7 @@ export function MonitoringDashboard() {
           id="dash-name"
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
-          className="mt-1.5 w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-emerald-500/40 focus:ring-2 focus:ring-emerald-500/20"
+          className="mt-1.5 w-full rounded-xl border border-line bg-field px-3.5 py-2.5 text-sm text-ink outline-none focus:border-ink focus:ring-2 focus:ring-ink/15"
           placeholder="e.g. Production SOC"
         />
       </div>
@@ -180,7 +180,7 @@ export function MonitoringDashboard() {
             key={t.key}
             type="button"
             onClick={() => void createFromTemplate(t.key)}
-            className="rounded-xl border border-zinc-800/90 bg-zinc-950/50 p-4 text-left transition-colors hover:border-emerald-500/30 hover:bg-zinc-900/50"
+            className="rounded-2xl border border-line bg-surface p-4 text-left shadow-card transition-[box-shadow,transform] hover:-translate-y-px hover:shadow-lift"
           >
             <div className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4 text-emerald-500" />
@@ -232,7 +232,7 @@ export function MonitoringDashboard() {
         <Card>
           <CardContent className="space-y-6 p-6 sm:p-8">
             <div className="flex items-start gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-400">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-chip text-ink">
                 <LayoutGrid className="h-6 w-6" />
               </div>
               <div className="min-w-0 space-y-1">
@@ -251,12 +251,12 @@ export function MonitoringDashboard() {
             {list.map((d) => (
               <div
                 key={d.id}
-                className="group relative rounded-2xl border border-zinc-800/90 bg-zinc-900/30 shadow-sm transition-colors hover:border-zinc-700 hover:bg-zinc-900/50"
+                className="group relative rounded-2xl border border-line bg-surface shadow-card transition-[box-shadow,transform] hover:-translate-y-px hover:shadow-lift"
               >
                 <button
                   type="button"
                   onClick={() => setSelectedId(d.id)}
-                  className="w-full p-5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/35 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 rounded-2xl"
+                  className="w-full rounded-2xl p-5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/20"
                 >
                   <div className="flex items-start justify-between gap-3 pr-6">
                     <div className="min-w-0 space-y-1">
@@ -270,10 +270,10 @@ export function MonitoringDashboard() {
                         })}
                       </p>
                     </div>
-                    <ChevronRight className="h-5 w-5 shrink-0 text-zinc-600 transition-colors group-hover:text-emerald-400/90" />
+                    <ChevronRight className="h-5 w-5 shrink-0 text-faint transition-colors group-hover:text-ink" />
                   </div>
                   {d.is_default ? (
-                    <span className="mt-3 inline-block rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-400/95">
+                    <span className="mt-3 inline-flex rounded-full bg-chip px-2.5 py-0.5 text-xs font-medium text-muted">
                       Default
                     </span>
                   ) : null}

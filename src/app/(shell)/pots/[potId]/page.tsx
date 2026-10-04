@@ -265,7 +265,7 @@ export default function PotDetailPage() {
             }
           />
 
-          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-zinc-800/90 bg-zinc-900/25 px-4 py-3">
+          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-zinc-800/90 bg-surface px-4 py-3">
             {pot.heartbeat_online ? (
               <Badge tone="success">Agent live</Badge>
             ) : pot.last_heartbeat_at ? (
@@ -430,7 +430,7 @@ export default function PotDetailPage() {
               ) : (
                 <ul className="space-y-3">
                   {list.map((s) => (
-                    <li key={s.id} className="rounded-2xl border border-zinc-800/90 bg-zinc-900/20 p-4 sm:p-5">
+                    <li key={s.id} className="rounded-2xl border border-zinc-800/90 bg-surface p-4 sm:p-5">
                       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                         <div className="min-w-0 space-y-1">
                           <p className="font-medium text-zinc-100">{s.name}</p>

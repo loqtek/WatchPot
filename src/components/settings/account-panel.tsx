@@ -129,7 +129,7 @@ export function AccountPanel() {
                 id="account-tz"
                 value={timezone}
                 onChange={(e) => setTimezone(e.target.value)}
-                className="mt-1 flex h-10 w-full rounded-lg border border-zinc-800 bg-zinc-950/80 px-3 text-sm text-zinc-100"
+                className="mt-1 flex h-11 w-full rounded-xl border border-line bg-field px-3.5 text-sm text-ink"
               >
                 {COMMON_TIMEZONES.map((opt) => (
                   <option key={opt.value} value={opt.value}>
@@ -144,7 +144,7 @@ export function AccountPanel() {
             <Button type="submit" disabled={tzSubmitting || userLoading} size="sm">
               {tzSubmitting ? (
                 <>
-                  <Spinner size="sm" className="mr-2 border-t-zinc-100" />
+                  <Spinner size="sm" className="mr-2 border-white/30 border-t-white" />
                   Saving…
                 </>
               ) : (
@@ -202,7 +202,7 @@ export function AccountPanel() {
             <Button type="submit" disabled={pwSubmitting} size="sm" className="w-fit">
               {pwSubmitting ? (
                 <>
-                  <Spinner size="sm" className="mr-2 border-t-zinc-100" />
+                  <Spinner size="sm" className="mr-2 border-white/30 border-t-white" />
                   Updating…
                 </>
               ) : (

@@ -94,7 +94,7 @@ export function BackupManageModal({
     >
       <button
         type="button"
-        className="absolute inset-0 bg-zinc-950/80 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
         aria-label="Close"
         onClick={onClose}
       />
@@ -123,30 +123,30 @@ export function BackupManageModal({
 
           <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm sm:grid-cols-3">
             <div>
-              <dt className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Scope</dt>
+              <dt className="text-xs font-medium text-zinc-500">Scope</dt>
               <dd className="mt-0.5 text-zinc-200">{backupTypeLabel(job.backup_type)}</dd>
             </div>
             <div>
-              <dt className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Pot</dt>
+              <dt className="text-xs font-medium text-zinc-500">Pot</dt>
               <dd className="mt-0.5 text-zinc-200">{job.pot_name ?? job.pot_id.slice(0, 8) + "…"}</dd>
             </div>
             <div>
-              <dt className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Total size</dt>
+              <dt className="text-xs font-medium text-zinc-500">Total size</dt>
               <dd className="mt-0.5 text-zinc-200 tabular-nums">{formatBytes(job.artifact_size)}</dd>
             </div>
             <div>
-              <dt className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Created</dt>
+              <dt className="text-xs font-medium text-zinc-500">Created</dt>
               <dd className="mt-0.5 text-zinc-400 text-xs">{formatDateTime(job.created_at)}</dd>
             </div>
             {job.completed_at ? (
               <div>
-                <dt className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Completed</dt>
+                <dt className="text-xs font-medium text-zinc-500">Completed</dt>
                 <dd className="mt-0.5 text-zinc-400 text-xs">{formatDateTime(job.completed_at)}</dd>
               </div>
             ) : null}
             {job.artifact_sha256 ? (
               <div className="col-span-2 sm:col-span-3">
-                <dt className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">SHA-256</dt>
+                <dt className="text-xs font-medium text-zinc-500">SHA-256</dt>
                 <dd className="mt-0.5 font-mono text-xs text-zinc-400 break-all">{job.artifact_sha256}</dd>
               </div>
             ) : null}
@@ -186,7 +186,7 @@ export function BackupManageModal({
                           </p>
                         )}
                         {a.agent_path ? (
-                          <div className="flex items-start justify-between gap-2 rounded-lg bg-zinc-900/80 px-3 py-2">
+                          <div className="flex items-start justify-between gap-2 rounded-lg bg-surface px-3 py-2">
                             <div className="min-w-0">
                               <p className="text-[10px] font-semibold uppercase text-sky-500/80">Pot agent</p>
                               <p className="font-mono text-xs text-zinc-400 break-all">{a.agent_path}</p>
@@ -195,7 +195,7 @@ export function BackupManageModal({
                           </div>
                         ) : null}
                         {a.server_path ? (
-                          <div className="flex items-start justify-between gap-2 rounded-lg bg-zinc-900/80 px-3 py-2">
+                          <div className="flex items-start justify-between gap-2 rounded-lg bg-surface px-3 py-2">
                             <div className="min-w-0">
                               <p className="text-[10px] font-semibold uppercase text-emerald-500/80">WatchPot server</p>
                               <p className="font-mono text-xs text-zinc-400 break-all">{a.server_path}</p>

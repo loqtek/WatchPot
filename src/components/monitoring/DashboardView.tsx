@@ -258,7 +258,7 @@ export function DashboardView({
               if (items.length === 0) return null;
               return (
                 <div key={cat}>
-                  <p className="mb-1 text-[9px] font-semibold uppercase tracking-wider text-zinc-600">
+                  <p className="mb-1 text-[11px] font-medium text-zinc-600">
                     {categoryLabels[cat]}
                   </p>
                   <div className="flex flex-wrap gap-1">
@@ -267,7 +267,7 @@ export function DashboardView({
                         key={w.type}
                         type="button"
                         onClick={() => addWidget(w)}
-                        className="rounded border border-zinc-800 bg-zinc-900/50 px-2 py-1 text-[11px] text-zinc-300 hover:border-emerald-500/30 hover:text-zinc-100"
+                        className="rounded border border-zinc-800 bg-surface px-2 py-1 text-[11px] text-zinc-300 hover:border-emerald-500/30 hover:text-zinc-100"
                       >
                         {w.title}
                       </button>

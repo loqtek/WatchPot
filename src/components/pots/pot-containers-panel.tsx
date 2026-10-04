@@ -108,13 +108,13 @@ function SummaryTile({
   tone?: "success" | "warning" | "danger" | "info" | "default";
 }) {
   return (
-    <div className="rounded-xl border border-zinc-800/90 bg-zinc-950/40 px-4 py-3 min-w-[7rem]">
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">{label}</p>
-      <p className="mt-1 flex items-center gap-2 text-xl font-semibold tabular-nums text-zinc-100">
+    <div className="min-w-[7rem] rounded-2xl border border-line bg-surface px-4 py-3.5 shadow-card">
+      <p className="text-[13px] font-medium text-muted">{label}</p>
+      <p className="mt-2 flex items-center gap-2 text-2xl font-semibold tabular-nums tracking-[-0.03em] text-ink">
         {tone ? <StatusDot tone={tone} /> : null}
         {value}
       </p>
-      {sub ? <p className="mt-0.5 text-[11px] text-zinc-600">{sub}</p> : null}
+      {sub ? <p className="mt-0.5 text-[11px] text-faint">{sub}</p> : null}
     </div>
   );
 }
@@ -348,7 +348,7 @@ export function PotContainersPanel({
     const active = selected?.name === c.name;
     return (
       <Tr
-        className={cn("cursor-pointer", active && "bg-emerald-500/5")}
+        className={cn("cursor-pointer", active && "bg-recessed")}
         onClick={() => void showLogs(c)}
       >
         <Td>
@@ -398,44 +398,19 @@ export function PotContainersPanel({
 
       {/* Toolbar */}
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs text-zinc-500 mr-1">Show</span>
+        <div className="seg seg-sm" role="group" aria-label="Container status">
           {(["all", "running", "stopped", "paused", "other"] as const).map((f) => (
-            <button
-              key={f}
-              type="button"
-              onClick={() => setStatusFilter(f)}
-              className={cn(
-                "rounded-lg border px-2.5 py-1 text-xs font-medium capitalize transition-colors",
-                statusFilter === f
-                  ? "border-emerald-600/50 bg-emerald-500/10 text-emerald-300"
-                  : "border-zinc-800 text-zinc-500 hover:border-zinc-700",
-              )}
-            >
+            <button key={f} type="button" aria-pressed={statusFilter === f} onClick={() => setStatusFilter(f)}>
               {f === "all" ? "All" : CONTAINER_STATUS_LABELS[f]}
             </button>
           ))}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex rounded-lg border border-zinc-800 p-0.5">
-            <button
-              type="button"
-              onClick={() => setViewMode("stacks")}
-              className={cn(
-                "rounded-md px-2.5 py-1 text-xs font-medium",
-                viewMode === "stacks" ? "bg-zinc-800 text-zinc-100" : "text-zinc-500",
-              )}
-            >
+          <div className="seg seg-sm" role="group" aria-label="Container view">
+            <button type="button" aria-pressed={viewMode === "stacks"} onClick={() => setViewMode("stacks")}>
               By stack
             </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("table")}
-              className={cn(
-                "rounded-md px-2.5 py-1 text-xs font-medium",
-                viewMode === "table" ? "bg-zinc-800 text-zinc-100" : "text-zinc-500",
-              )}
-            >
+            <button type="button" aria-pressed={viewMode === "table"} onClick={() => setViewMode("table")}>
               All containers
             </button>
           </div>
@@ -506,7 +481,7 @@ export function PotContainersPanel({
                 const st = g.status;
                 return (
                   <Card key={g.stack.id} className="overflow-hidden">
-                    <div className="flex flex-col gap-3 border-b border-zinc-800/80 bg-zinc-900/40 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-col gap-3 border-b border-zinc-800/80 bg-surface px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                       <button
                         type="button"
                         className="flex min-w-0 flex-1 items-start gap-3 text-left"

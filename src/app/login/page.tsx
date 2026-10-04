@@ -83,7 +83,7 @@ export default function LoginPage() {
       footer={
         <p>
           Need an account?{" "}
-          <Link href="/register" className="text-emerald-500 hover:text-emerald-400 font-medium">
+          <Link href="/register" className="font-medium text-ink underline decoration-ink/25 underline-offset-4 hover:decoration-signal">
             Register
           </Link>{" "}
           <span className="text-zinc-600">(if enabled by your admin)</span>
@@ -134,7 +134,7 @@ export default function LoginPage() {
         <Button type="submit" className="w-full" disabled={submitting}>
           {submitting ? (
             <>
-              <Spinner size="sm" className="mr-2 border-t-zinc-100" />
+              <Spinner size="sm" className="mr-2 border-white/30 border-t-white" />
               Signing in…
             </>
           ) : (
