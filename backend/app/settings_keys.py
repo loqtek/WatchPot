@@ -9,8 +9,12 @@ DEPLOYMENT_STACK_MODE = "deployment_stack_mode"
 ALLOW_PUBLIC_REGISTRATION = "allow_public_registration"
 BOOTSTRAP_VERSION = "bootstrap_version"
 HEARTBEAT_STALE_MINUTES = "heartbeat_stale_minutes"
+EVENT_RETENTION_MAX = "event_retention_max"
 SIEM_INTEGRATIONS = "siem_integrations"
 ENRICHMENT_CONFIG = "enrichment_config"
+
+DEFAULT_EVENT_RETENTION_MAX = 50_000
+DEFAULT_ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
 
 DEFAULT_ADMIN_EMAIL = "wpadmin@watchpot.local"
 DEFAULT_ADMIN_USERNAME_HINT = "wpadmin"

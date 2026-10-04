@@ -32,6 +32,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const u = await apiFetch<UserOut>("/auth/me");
       setUser(u);
+      if (u.must_change_password) {
+        router.replace("/change-password");
+      }
     } catch {
       setUser(null);
       clearClientSession();

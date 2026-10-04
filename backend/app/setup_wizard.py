@@ -12,6 +12,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from urllib.parse import quote_plus
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 REPO_ROOT = BACKEND_DIR.parent
@@ -33,6 +34,7 @@ def write_backend_env(pairs: dict[str, str]) -> None:
     merged.update(pairs)
     body = "\n".join(f"{k}={v}" for k, v in sorted(merged.items())) + "\n"
     path.write_text(body)
+    os.chmod(path, 0o600)
     print(f"Wrote {path}")
 
 
@@ -60,6 +62,7 @@ def write_root_env(pairs: dict[str, str]) -> None:
     merged.update(pairs)
     body = "\n".join(f"{k}={v}" for k, v in sorted(merged.items())) + "\n"
     path.write_text(body)
+    os.chmod(path, 0o600)
     print(f"Wrote {path}")
 
 
@@ -82,10 +85,13 @@ def run_bootstrap_subprocess(env: dict[str, str]) -> None:
         sys.exit(proc.returncode)
 
 
-def start_docker_compose(compose_path: Path) -> None:
+def start_docker_compose(compose_path: Path, password: str) -> None:
+    env = os.environ.copy()
+    env["POSTGRES_PASSWORD"] = password
     subprocess.run(
-        ["docker", "compose", "-f", str(compose_path), "up", "-d"],
+        ["docker", "compose", "--env-file", str(REPO_ROOT / ".env"), "-f", str(compose_path), "up", "-d"],
         cwd=str(REPO_ROOT),
+        env=env,
         check=True,
     )
 
@@ -105,13 +111,14 @@ def prompt_choice(title: str, options: list[tuple[str, str]]) -> str:
                 return key
 
 
-def build_database_url(db: str, mode: str) -> str:
+def build_database_url(db: str, mode: str, password: str) -> str:
+    pw = quote_plus(password)
     if db == "postgres":
         if mode in ("full", "api_only"):
-            return "postgresql+asyncpg://watchpot:watchpot@postgres:5432/watchpot"
-        return "postgresql+asyncpg://watchpot:watchpot@127.0.0.1:5433/watchpot"
+            return f"postgresql+asyncpg://watchpot:{pw}@postgres:5432/watchpot"
+        return f"postgresql+asyncpg://watchpot:{pw}@127.0.0.1:5433/watchpot"
     if db == "mysql":
-        return "mysql+aiomysql://watchpot:watchpot@127.0.0.1:3307/watchpot?charset=utf8mb4"
+        return f"mysql+aiomysql://watchpot:{pw}@127.0.0.1:3307/watchpot?charset=utf8mb4"
     raise ValueError(db)
 
 
@@ -151,19 +158,22 @@ def apply_configuration(
     public_host: str | None,
     skip_bootstrap: bool,
 ) -> None:
-    url = build_database_url(db, mode)
+    from app.db_password import ensure_db_password
+
+    password = ensure_db_password(REPO_ROOT / ".env")
+    url = build_database_url(db, mode, password)
     if start_docker:
         if db == "postgres":
-            start_docker_compose(SETUP_POSTGRES)
+            start_docker_compose(SETUP_POSTGRES, password)
         elif db == "mysql":
-            start_docker_compose(SETUP_MYSQL)
+            start_docker_compose(SETUP_MYSQL, password)
 
     env_pairs: dict[str, str] = {
         "DATABASE_URL": url,
         "WATCHPOT_STACK_MODE": mode,
         "WATCHPOT_API_ROLE": "control",
     }
-    root_pairs: dict[str, str] = {}
+    root_pairs: dict[str, str] = {"POSTGRES_PASSWORD": password}
     resolved_public_host = public_host
     if mode in ("full", "api_only", "ui_only"):
         if mode in ("full", "api_only") and not resolved_public_host and not next_public_api_url:

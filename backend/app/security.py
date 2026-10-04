@@ -27,14 +27,42 @@ def create_access_token(
     subject: str,
     extra: dict[str, Any] | None = None,
     *,
+    session_version: int,
     expire_minutes: int | None = None,
 ) -> str:
     minutes = expire_minutes if expire_minutes is not None else get_access_token_expire_minutes()
     expire = datetime.now(timezone.utc) + timedelta(minutes=minutes)
-    to_encode: dict[str, Any] = {"sub": subject, "exp": expire}
+    to_encode: dict[str, Any] = {
+        "sub": subject,
+        "exp": expire,
+        "sv": int(session_version),
+        "typ": "access",
+    }
     if extra:
         to_encode.update(extra)
     return jwt.encode(to_encode, get_jwt_secret(), algorithm=get_jwt_algorithm())
+
+
+def create_preauth_token(subject: str, *, session_version: int) -> str:
+    """Short-lived token that only allows completing a TOTP challenge."""
+    expire = datetime.now(timezone.utc) + timedelta(minutes=5)
+    to_encode: dict[str, Any] = {
+        "sub": subject,
+        "exp": expire,
+        "sv": int(session_version),
+        "typ": "preauth",
+    }
+    return jwt.encode(to_encode, get_jwt_secret(), algorithm=get_jwt_algorithm())
+
+
+def access_token_matches_user(payload: dict[str, Any], *, session_version: int) -> bool:
+    """True only for access tokens issued at the user's current session version."""
+    if payload.get("typ") != "access":
+        return False
+    try:
+        return int(payload.get("sv")) == int(session_version)
+    except (TypeError, ValueError):
+        return False
 
 
 def decode_access_token(token: str) -> dict[str, Any] | None:

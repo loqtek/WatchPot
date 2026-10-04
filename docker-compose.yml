@@ -26,7 +26,7 @@
 # ── Database ──────────────────────────────────────────────────────────────────
 # PostgreSQL is required for the Docker stack (service hostname: postgres).
 # For local_dev with MySQL instead, use deploy/setup/docker-compose.mysql.yml and set:
-#      DATABASE_URL=mysql+aiomysql://watchpot:watchpot@127.0.0.1:3307/watchpot?charset=utf8mb4
+#      DATABASE_URL=mysql+aiomysql://watchpot:${POSTGRES_PASSWORD}@127.0.0.1:3307/watchpot?charset=utf8mb4
 
 services:
   proxy:
@@ -59,7 +59,7 @@ services:
       - ./backend/.env
     environment:
       # Must match POSTGRES_PASSWORD below (Postgres only applies that on first volume init).
-      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://watchpot:${POSTGRES_PASSWORD:-change-me-now}@postgres:5432/watchpot}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://watchpot:${POSTGRES_PASSWORD}@postgres:5432/watchpot}
       WATCHPOT_API_ROLE: ${WATCHPOT_API_ROLE:-control}
       WATCHPOT_STACK_MODE: ${WATCHPOT_STACK_MODE:-full}
       WATCHPOT_AUTO_LOCAL_AGENT: ${WATCHPOT_AUTO_LOCAL_AGENT:-false}
@@ -147,7 +147,7 @@ services:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: watchpot
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-now}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       POSTGRES_DB: watchpot
     volumes:
       - stack_pgdata:/var/lib/postgresql/data

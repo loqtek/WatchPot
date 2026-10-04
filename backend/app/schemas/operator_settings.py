@@ -11,9 +11,12 @@ class OperatorSettingsOut(BaseModel):
     external_log_paths: list[str]
     jwt_algorithm: str
     heartbeat_stale_minutes: int
+    event_retention_max: int
     public_agent_enrollment_required: bool
 
 
 class OperatorSettingsUpdate(BaseModel):
     allow_public_registration: bool | None = None
     heartbeat_stale_minutes: int | None = Field(default=None, ge=1, le=1440)
+    access_token_expire_minutes: int | None = Field(default=None, ge=15, le=60 * 24 * 7)
+    event_retention_max: int | None = Field(default=None, ge=1_000, le=2_000_000)

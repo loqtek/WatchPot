@@ -151,6 +151,7 @@ async def reset_user_password(
 ) -> dict[str, str]:
     user = await _get_user_or_404(db, user_id)
     user.hashed_password = hash_secret(body.new_password)
+    user.session_version = int(user.session_version or 0) + 1
     await write_audit(
         db,
         action="user.password_reset",

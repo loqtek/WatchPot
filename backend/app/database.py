@@ -109,6 +109,18 @@ def _apply_runtime_migrations(sync_conn) -> None:
                     "ALTER TABLE users ADD COLUMN timezone VARCHAR(64) NOT NULL DEFAULT 'America/New_York'"
                 )
             )
+        bool_false = "false" if sync_conn.dialect.name == "postgresql" else "0"
+        user_adds = (
+            ("must_change_password", f"BOOLEAN NOT NULL DEFAULT {bool_false}"),
+            ("session_version", "INTEGER NOT NULL DEFAULT 1"),
+            ("totp_enabled", f"BOOLEAN NOT NULL DEFAULT {bool_false}"),
+            ("totp_secret", "TEXT"),
+            ("totp_pending_secret", "TEXT"),
+            ("totp_recovery_hashes", "TEXT"),
+        )
+        for name, ddl in user_adds:
+            if name not in cols:
+                sync_conn.execute(text(f"ALTER TABLE users ADD COLUMN {name} {ddl}"))
     if insp.has_table("backup_jobs"):
         cols = {c["name"] for c in insp.get_columns("backup_jobs")}
         for col, ddl in (

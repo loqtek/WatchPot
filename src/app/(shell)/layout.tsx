@@ -3,7 +3,8 @@
 import { startTransition, useEffect, useState } from "react";
 import { AppShell } from "@/components/shell/app-shell";
 import { AuthProvider } from "@/contexts/auth-context";
-import { probeSession } from "@/lib/api";
+import { getApiBase } from "@/lib/api";
+import type { UserOut } from "@/lib/types";
 
 export default function ShellLayout({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
@@ -11,14 +12,24 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
   useEffect(() => {
     let cancelled = false;
 
-    void probeSession().then((ok) => {
-      if (cancelled) return;
-      if (!ok) {
-        window.location.replace("/login");
-        return;
+    void (async () => {
+      try {
+        const res = await fetch(`${getApiBase().replace(/\/$/, "")}/auth/me`, { credentials: "include" });
+        if (cancelled) return;
+        if (!res.ok) {
+          window.location.replace("/login");
+          return;
+        }
+        const user = (await res.json()) as UserOut;
+        if (user.must_change_password) {
+          window.location.replace("/change-password");
+          return;
+        }
+        startTransition(() => setReady(true));
+      } catch {
+        if (!cancelled) window.location.replace("/login");
       }
-      startTransition(() => setReady(true));
-    });
+    })();
 
     return () => {
       cancelled = true;

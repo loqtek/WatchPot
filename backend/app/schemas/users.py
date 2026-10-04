@@ -11,6 +11,8 @@ class UserAdminOut(BaseModel):
     is_active: bool
     is_admin: bool
     timezone: str
+    must_change_password: bool = False
+    totp_enabled: bool = False
     created_at: datetime
 
     model_config = {"from_attributes": True}

@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { Clock, Shield } from "lucide-react";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, rememberCsrfToken } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { useAuth } from "@/hooks/use-auth";
 import { COMMON_TIMEZONES, timezoneLabel } from "@/lib/format-datetime";
 import { notify } from "@/lib/toast";
+import { TotpCard } from "@/components/settings/totp-card";
 
 export function AccountPanel() {
   const { user, loading: userLoading, refetch: refetchUser } = useAuth();
@@ -35,14 +36,15 @@ export function AccountPanel() {
     }
     setPwSubmitting(true);
     try {
-      await apiFetch("/auth/password", {
+      const res = await apiFetch<{ csrf_token?: string | null }>("/auth/password", {
         method: "POST",
         json: { current_password: currentPassword, new_password: newPassword },
       });
+      if (res?.csrf_token) rememberCsrfToken(res.csrf_token);
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-      notify.success("Password updated");
+      notify.success("Password updated. Other sessions were signed out.");
       void refetchUser();
     } catch (err) {
       notify.apiError(err, "Could not update password");
@@ -156,7 +158,9 @@ export function AccountPanel() {
       <Card className="lg:col-span-2">
         <CardHeader>
           <CardTitle className="text-base">Change password</CardTitle>
-          <CardDescription>Update your own password. You stay signed in.</CardDescription>
+          <CardDescription>
+            Choose a new password. This session stays signed in. Every other session stops working.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={onPassword} className="grid gap-3 sm:max-w-md">
@@ -208,6 +212,8 @@ export function AccountPanel() {
           </form>
         </CardContent>
       </Card>
+
+      <TotpCard />
     </div>
   );
 }

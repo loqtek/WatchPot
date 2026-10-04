@@ -21,18 +21,32 @@ type Props = {
 export function AccessPanel({ settings, onUpdated }: Props) {
   const [allowRegistration, setAllowRegistration] = useState(settings.allow_public_registration);
   const [heartbeatStale, setHeartbeatStale] = useState(String(settings.heartbeat_stale_minutes));
+  const [sessionMinutes, setSessionMinutes] = useState(String(settings.access_token_expire_minutes));
+  const [eventCap, setEventCap] = useState(String(settings.event_retention_max));
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setAllowRegistration(settings.allow_public_registration);
     setHeartbeatStale(String(settings.heartbeat_stale_minutes));
+    setSessionMinutes(String(settings.access_token_expire_minutes));
+    setEventCap(String(settings.event_retention_max));
   }, [settings]);
 
   async function onSave(e: FormEvent) {
     e.preventDefault();
     const stale = Number(heartbeatStale);
+    const session = Number(sessionMinutes);
+    const events = Number(eventCap);
     if (!Number.isFinite(stale) || stale < 1 || stale > 1440) {
       notify.error("Heartbeat stale minutes must be between 1 and 1440");
+      return;
+    }
+    if (!Number.isFinite(session) || session < 15 || session > 10080) {
+      notify.error("Session length must be between 15 minutes and 7 days");
+      return;
+    }
+    if (!Number.isFinite(events) || events < 1000 || events > 2_000_000) {
+      notify.error("Stored events must be between 1,000 and 2,000,000");
       return;
     }
     setSaving(true);
@@ -42,6 +56,8 @@ export function AccessPanel({ settings, onUpdated }: Props) {
         json: {
           allow_public_registration: allowRegistration,
           heartbeat_stale_minutes: stale,
+          access_token_expire_minutes: session,
+          event_retention_max: events,
         },
       });
       onUpdated();
@@ -55,7 +71,9 @@ export function AccessPanel({ settings, onUpdated }: Props) {
 
   const dirty =
     allowRegistration !== settings.allow_public_registration ||
-    Number(heartbeatStale) !== settings.heartbeat_stale_minutes;
+    Number(heartbeatStale) !== settings.heartbeat_stale_minutes ||
+    Number(sessionMinutes) !== settings.access_token_expire_minutes ||
+    Number(eventCap) !== settings.event_retention_max;
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
@@ -98,6 +116,38 @@ export function AccessPanel({ settings, onUpdated }: Props) {
               />
               <p className="mt-1 text-xs text-zinc-600">
                 Pots without a heartbeat within this window show as offline in the UI.
+              </p>
+            </div>
+            <div>
+              <Label htmlFor="session-minutes">Session length (minutes)</Label>
+              <Input
+                id="session-minutes"
+                type="number"
+                min={15}
+                max={10080}
+                value={sessionMinutes}
+                onChange={(e) => setSessionMinutes(e.target.value)}
+                className="mt-1 max-w-[8rem]"
+              />
+              <p className="mt-1 text-xs text-zinc-600">
+                New sign-ins expire after this long. Changing a password or signing out revokes
+                existing sessions immediately.
+              </p>
+            </div>
+            <div>
+              <Label htmlFor="event-cap">Stored events (max)</Label>
+              <Input
+                id="event-cap"
+                type="number"
+                min={1000}
+                max={2000000}
+                step={1000}
+                value={eventCap}
+                onChange={(e) => setEventCap(e.target.value)}
+                className="mt-1 max-w-[10rem]"
+              />
+              <p className="mt-1 text-xs text-zinc-600">
+                Oldest events are deleted once the store passes this count. Default is 50,000.
               </p>
             </div>
             <p className="text-xs text-zinc-500">

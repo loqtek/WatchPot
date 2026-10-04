@@ -12,6 +12,7 @@ from app.runtime_config import (
     get_access_token_expire_minutes,
     get_cors_origins,
     get_deployment_stack_mode,
+    get_event_retention_max,
     get_external_log_paths,
     get_heartbeat_stale_minutes,
     get_jwt_algorithm,
@@ -19,7 +20,12 @@ from app.runtime_config import (
     load_settings_from_db,
 )
 from app.schemas.operator_settings import OperatorSettingsOut, OperatorSettingsUpdate
-from app.settings_keys import ALLOW_PUBLIC_REGISTRATION, HEARTBEAT_STALE_MINUTES
+from app.settings_keys import (
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+    ALLOW_PUBLIC_REGISTRATION,
+    EVENT_RETENTION_MAX,
+    HEARTBEAT_STALE_MINUTES,
+)
 from app.settings_service import upsert_setting
 
 router = APIRouter(prefix="/settings", tags=["settings"])
@@ -34,6 +40,7 @@ def _settings_out() -> OperatorSettingsOut:
         external_log_paths=get_external_log_paths(),
         jwt_algorithm=get_jwt_algorithm(),
         heartbeat_stale_minutes=get_heartbeat_stale_minutes(),
+        event_retention_max=get_event_retention_max(),
         public_agent_enrollment_required=not public_agent_open(),
     )
 
@@ -51,7 +58,12 @@ async def update_operator_settings(
     actor: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> OperatorSettingsOut:
-    if body.allow_public_registration is None and body.heartbeat_stale_minutes is None:
+    if (
+        body.allow_public_registration is None
+        and body.heartbeat_stale_minutes is None
+        and body.access_token_expire_minutes is None
+        and body.event_retention_max is None
+    ):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No settings to update")
 
     if body.allow_public_registration is not None:
@@ -62,6 +74,10 @@ async def update_operator_settings(
         )
     if body.heartbeat_stale_minutes is not None:
         await upsert_setting(db, HEARTBEAT_STALE_MINUTES, str(body.heartbeat_stale_minutes))
+    if body.access_token_expire_minutes is not None:
+        await upsert_setting(db, ACCESS_TOKEN_EXPIRE_MINUTES, str(body.access_token_expire_minutes))
+    if body.event_retention_max is not None:
+        await upsert_setting(db, EVENT_RETENTION_MAX, str(body.event_retention_max))
 
     await load_settings_from_db(db)
     await write_audit(
