@@ -145,6 +145,27 @@ async def _agent_env_matches_pot(session: AsyncSession, pot: Pot) -> bool:
     return verify_secret(token, pot.agent_key_hash)
 
 
+def sync_agent_connection_settings() -> bool:
+    """Point agent/.env at this control plane without rotating the agent key."""
+    env_path = agent_env_path()
+    if not env_path.is_file():
+        return False
+    current = _read_env_file(env_path)
+    api_url = _local_agent_api_url()
+    work_dir = os.environ.get("WATCHPOT_LOCAL_AGENT_WORK_DIR", "./data")
+    updates = {
+        "WATCHPOT_API_URL": api_url,
+        "WATCHPOT_WORK_DIR": work_dir,
+    }
+    if api_url.startswith("https://") and os.environ.get("WATCHPOT_TLS_CA_FILE"):
+        updates["WATCHPOT_TLS_CA_FILE"] = os.environ["WATCHPOT_TLS_CA_FILE"]
+    if all(current.get(key) == value for key, value in updates.items()):
+        return False
+    _merge_env_file(env_path, updates)
+    log.info("Updated local agent connection settings in %s", env_path)
+    return True
+
+
 def write_agent_credentials(pot_id: UUID, agent_key: str) -> None:
     ensure_agent_env_file()
     env_path = agent_env_path()
@@ -203,6 +224,7 @@ async def reconcile_auto_local_agent(
     agent_key: str | None = None
 
     if pot is not None and not env_stale and await _agent_env_matches_pot(session, pot):
+        sync_agent_connection_settings()
         return LocalAgentResult(pot_id=str(pot.id), created=False, credentials_written=False)
 
     if pot is None:

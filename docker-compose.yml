@@ -13,15 +13,15 @@
 #   Linux:  sudo cp deploy/tls/out/watchpot-local-ca.crt /usr/local/share/ca-certificates/ && sudo update-ca-certificates
 #   macOS:  sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain deploy/tls/out/watchpot-local-ca.crt
 #
-# The agent starts automatically: the API registers a local-dev pot and writes
-# credentials to agent/.env; the agent container waits for that file then connects.
-# Disable with WATCHPOT_AUTO_LOCAL_AGENT=false (and remove or stop the agent service).
+# The agent starts automatically: the API registers a local pot and writes
+# credentials to agent/.env. The in-stack agent talks to the API on the compose
+# network (http://api:6040/api). Disable with WATCHPOT_AUTO_LOCAL_AGENT=false.
 #
 # Fresh stack database (wipes compose Postgres + TLS certs):
 #   docker compose down -v
 #
-# Plain HTTP debugging: set WATCHPOT_AGENT_API_URL=http://api:6040/api and expose api/web ports
-# in docker-compose.override.yml (not the default — all traffic goes through the TLS proxy).
+# Browser and remote-agent traffic stays on the TLS proxy. Override the in-stack
+# agent with WATCHPOT_AGENT_API_URL if it should use the public HTTPS endpoint.
 #
 # ── Database ──────────────────────────────────────────────────────────────────
 # PostgreSQL is required for the Docker stack (service hostname: postgres).
@@ -62,9 +62,9 @@ services:
       DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://watchpot:${POSTGRES_PASSWORD}@postgres:5432/watchpot}
       WATCHPOT_API_ROLE: ${WATCHPOT_API_ROLE:-control}
       WATCHPOT_STACK_MODE: ${WATCHPOT_STACK_MODE:-full}
-      WATCHPOT_AUTO_LOCAL_AGENT: ${WATCHPOT_AUTO_LOCAL_AGENT:-false}
+      WATCHPOT_AUTO_LOCAL_AGENT: ${WATCHPOT_AUTO_LOCAL_AGENT:-true}
       WATCHPOT_AGENT_DIR: /agent
-      WATCHPOT_LOCAL_AGENT_API_URL: ${WATCHPOT_AGENT_API_URL:-https://proxy/api}
+      WATCHPOT_LOCAL_AGENT_API_URL: ${WATCHPOT_AGENT_API_URL:-http://api:6040/api}
       WATCHPOT_LOCAL_AGENT_WORK_DIR: /var/lib/watchpot
       WATCHPOT_TLS_CA_FILE: /etc/watchpot/tls/ca.crt
       WATCHPOT_CORS_ORIGINS: ${WATCHPOT_CORS_ORIGINS:-https://localhost,https://127.0.0.1}
@@ -126,7 +126,7 @@ services:
       dockerfile: Dockerfile
     image: watchpot-agent:local
     environment:
-      WATCHPOT_API_URL: ${WATCHPOT_AGENT_API_URL:-https://proxy/api}
+      WATCHPOT_API_URL: ${WATCHPOT_AGENT_API_URL:-http://api:6040/api}
       WATCHPOT_TLS_CA_FILE: /etc/watchpot/tls/ca.crt
       WATCHPOT_AGENT_ENV_FILE: /agent/.env
       WATCHPOT_WAIT_FOR_REGISTRATION: "1"
