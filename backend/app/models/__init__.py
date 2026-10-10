@@ -3,6 +3,7 @@ from app.models.audit import AuditLog
 from app.models.cve_entry import CveEntry
 from app.models.enrichment_rule import EnrichmentRule
 from app.models.enrichment_schedule import EnrichmentSchedule
+from app.models.threat_command import ThreatCommand
 from app.models.threat_ip import ThreatIp
 from app.models.backup_artifact import BackupArtifact
 from app.models.backup_job import BackupJob
@@ -33,5 +34,6 @@ __all__ = [
     "EnrichmentRule",
     "EnrichmentSchedule",
     "CveEntry",
+    "ThreatCommand",
     "ThreatIp",
 ]

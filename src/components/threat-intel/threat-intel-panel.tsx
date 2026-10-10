@@ -8,6 +8,7 @@ import {
   Database,
   Globe,
   Play,
+  Terminal,
   Plus,
   RefreshCw,
   Save,
@@ -15,6 +16,7 @@ import {
   Trash2,
   Zap,
 } from "lucide-react";
+import { CommandsTab } from "@/components/threat-intel/commands-tab";
 import { CveTab } from "@/components/threat-intel/cve-tab";
 import { IpIntelTab } from "@/components/threat-intel/ip-intel-tab";
 import { apiFetch } from "@/lib/api";
@@ -44,13 +46,14 @@ import { Table, TableWrap, TBody, Td, Th, THead, Tr } from "@/components/ui/data
 import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
 
-type TabId = "overview" | "rules" | "cve" | "ips" | "schedules" | "settings";
+type TabId = "overview" | "rules" | "cve" | "ips" | "commands" | "schedules" | "settings";
 
 const TABS: { id: TabId; label: string; icon: typeof Shield }[] = [
   { id: "overview", label: "Overview", icon: Shield },
   { id: "rules", label: "Fingerprint rules", icon: Zap },
   { id: "cve", label: "CVE database", icon: Database },
   { id: "ips", label: "Bad IPs", icon: Globe },
+  { id: "commands", label: "Commands", icon: Terminal },
   { id: "schedules", label: "Schedules", icon: CalendarClock },
   { id: "settings", label: "Settings", icon: AlertTriangle },
 ];
@@ -113,6 +116,7 @@ export function ThreatIntelPanel() {
       {tab === "rules" ? <RulesTab onChanged={refetchStats} /> : null}
       {tab === "cve" ? <CveTab /> : null}
       {tab === "ips" ? <IpIntelTab /> : null}
+      {tab === "commands" ? <CommandsTab /> : null}
       {tab === "schedules" ? <SchedulesTab /> : null}
       {tab === "settings" ? <SettingsTab onChanged={refetchStats} /> : null}
     </div>

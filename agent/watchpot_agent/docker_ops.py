@@ -81,16 +81,17 @@ def stack_project_name(prefix: str, stack_id: UUID) -> str:
 
 
 def docker_logs(container: str, *, tail: int = 200) -> tuple[bool, str]:
+    """Tail logs in timestamp order. stdout and stderr stay interleaved, matching `docker logs`."""
     tail = max(1, min(int(tail), 5000))
     try:
         proc = subprocess.run(
-            ["docker", "logs", "--tail", str(tail), container],
-            capture_output=True,
+            ["docker", "logs", "--timestamps", "--tail", str(tail), container],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
             text=True,
             timeout=45,
         )
-        out = (proc.stdout or "") + ("\n" + proc.stderr if proc.stderr else "")
-        return proc.returncode == 0, out.strip() or f"exit {proc.returncode}"
+        return proc.returncode == 0, (proc.stdout or "").strip() or f"exit {proc.returncode}"
     except (OSError, subprocess.TimeoutExpired) as e:
         return False, str(e)
 

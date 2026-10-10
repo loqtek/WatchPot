@@ -117,6 +117,15 @@ function LogWindowConfigDialogBody({
               className="mt-1 w-28"
             />
           </div>
+
+          <label className="flex items-center gap-2 text-sm text-ink">
+            <input
+              type="checkbox"
+              checked={draft.hideSearch === true}
+              onChange={(e) => setDraft((d) => ({ ...d, hideSearch: e.target.checked }))}
+            />
+            Hide search bar
+          </label>
         </div>
 
         <div className="mt-6 flex justify-end gap-2">

@@ -7,6 +7,7 @@ import { Activity, ChevronDown, ChevronRight, ClipboardList, Container, FileText
 import { apiFetch } from "@/lib/api";
 import type { AuditLogRow, EventRow, Pot } from "@/lib/types";
 import { EventExpandedDetails } from "@/components/events/event-expanded-details";
+import { LogViewer } from "@/components/logs/log-viewer";
 import { PotContainerLogs } from "@/components/events/pot-container-logs";
 import {
   channelTone,
@@ -217,9 +218,7 @@ export default function EventsPage() {
                     )}
                   </button>
                   {expandedId === e.id && e.raw_log ? (
-                    <pre className="max-h-64 overflow-auto rounded-none border-t border-zinc-800/80 bg-transparent px-3 py-3 font-mono text-xs text-zinc-400 whitespace-pre-wrap">
-                      {e.raw_log}
-                    </pre>
+                    <LogViewer text={e.raw_log} mode="snapshot" className="h-64 rounded-none border-0 border-t" />
                   ) : expandedId === e.id ? (
                     <p className="border-t border-zinc-800/80 px-3 py-3 text-xs text-zinc-500">
                       Enable “Include docker log body” to load log text.

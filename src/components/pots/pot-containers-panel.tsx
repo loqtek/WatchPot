@@ -16,11 +16,8 @@ import {
   RefreshCw,
   Circle,
   ChevronRight,
-  WrapText,
-  AlignJustify,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
-import { fetchCachedContainerLogs } from "@/lib/container-logs";
 import {
   CONTAINER_STATUS_LABELS,
   STACK_STATUS_LABELS,
@@ -30,7 +27,9 @@ import {
   type StackWorkloadStatus,
 } from "@/lib/pot-workload";
 import type { PotContainer, PotInfra, Stack } from "@/lib/types";
+import { useLogStream } from "@/hooks/use-log-stream";
 import { usePotCommand } from "@/hooks/use-pot-command";
+import { LogViewer } from "@/components/logs/log-viewer";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -163,11 +162,16 @@ export function PotContainersPanel({
   const [collapsedStacks, setCollapsedStacks] = useState<Record<string, boolean>>({});
 
   const [selected, setSelected] = useState<PotContainer | null>(null);
-  const [logsText, setLogsText] = useState("");
-  const [logsTail, setLogsTail] = useState(150);
+  const [logsTail, setLogsTail] = useState(200);
   const [shellContainer, setShellContainer] = useState<PotContainer | null>(null);
   const [shellCmd, setShellCmd] = useState("id && uname -a");
-  const [logWrap, setLogWrap] = useState(true);
+  const [shellOutput, setShellOutput] = useState<string | null>(null);
+  const logStream = useLogStream({
+    potId,
+    container: selected?.name || selected?.id || "",
+    tail: logsTail,
+    enabled: Boolean(selected),
+  });
 
   const containers = useMemo(() => infra?.containers ?? [], [infra?.containers]);
   const workload = useMemo(() => groupWorkload(stacks, containers), [stacks, containers]);
@@ -237,38 +241,17 @@ export function PotContainersPanel({
     }
   }
 
-  async function showLogs(c: PotContainer) {
-    setSelected(c);
+  function openLogs(c: PotContainer) {
+    setShellOutput(null);
     setShellContainer(null);
-    setBusy(`logs-${c.id}`);
-    let shown = "";
-    const id = encodeURIComponent(c.name || c.id);
-    try {
-      const cached = await apiFetch<{ raw_log: string | null }>(
-        `/pots/${potId}/containers/${id}/logs/cached`,
-      ).catch(() => fetchCachedContainerLogs(potId, c.name || c.id));
-      if (cached?.raw_log) {
-        shown = cached.raw_log;
-        setLogsText(shown);
-      }
-    } catch {
-      /* ignore */
-    }
-    try {
-      const result = await runCommand({ action: "logs", container: c.name || c.id, tail: logsTail });
-      setLogsText(result.output || result.error || shown || "(empty)");
-    } catch (e) {
-      if (!shown) setLogsText(e instanceof Error ? e.message : "Failed to load logs");
-    } finally {
-      setBusy(null);
-    }
+    setSelected(c);
   }
 
   function clearContainerSelection(c: PotContainer) {
     const key = c.name || c.id;
     if (selected && (selected.name === key || selected.id === c.id)) {
       setSelected(null);
-      setLogsText("");
+      setShellOutput(null);
     }
     if (shellContainer && (shellContainer.name === key || shellContainer.id === c.id)) {
       setShellContainer(null);
@@ -298,8 +281,8 @@ export function PotContainersPanel({
     const isRunning = rt === "running";
     return (
       <div className={cn("flex flex-wrap gap-1", compact && "justify-end")}>
-        <Button type="button" variant="ghost" size="sm" disabled={!!busy} onClick={() => void showLogs(c)} title="Logs">
-          {busy === `logs-${c.id}` ? <Spinner size="sm" /> : <FileText className="h-3.5 w-3.5" />}
+        <Button type="button" variant="ghost" size="sm" disabled={!!busy} onClick={() => openLogs(c)} title="Logs">
+          {logStream.loading && selected?.id === c.id ? <Spinner size="sm" /> : <FileText className="h-3.5 w-3.5" />}
           {!compact ? <span className="ml-1">Logs</span> : null}
         </Button>
         {!isRunning ? (
@@ -371,7 +354,7 @@ export function PotContainersPanel({
     return (
       <Tr
         className={cn("cursor-pointer", active && "bg-recessed")}
-        onClick={() => void showLogs(c)}
+        onClick={() => openLogs(c)}
       >
         <Td>
           <div className="flex items-center gap-2">
@@ -676,47 +659,33 @@ export function PotContainersPanel({
                       min={10}
                       max={2000}
                       value={logsTail}
-                      onChange={(e) => setLogsTail(Number(e.target.value) || 150)}
+                      onChange={(e) => setLogsTail(Number(e.target.value) || 200)}
                       className="h-8 w-20 text-xs"
                     />
                     <Button
                       type="button"
                       size="sm"
                       variant="secondary"
-                      disabled={!!busy}
-                      onClick={() => selected && void showLogs(selected)}
+                      disabled={logStream.loading || logStream.liveFetching}
+                      onClick={() => void logStream.refresh()}
                     >
+                      {logStream.liveFetching ? <Spinner size="sm" className="mr-1" /> : null}
                       Refresh
                     </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={logWrap ? "secondary" : "outline"}
-                      onClick={() => setLogWrap(true)}
-                      title="Wrap long lines"
-                    >
-                      <WrapText className="h-3.5 w-3.5" />
-                      <span className="ml-1">Wrap</span>
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={!logWrap ? "secondary" : "outline"}
-                      onClick={() => setLogWrap(false)}
-                      title="No wrap — scroll horizontally"
-                    >
-                      <AlignJustify className="h-3.5 w-3.5" />
-                      <span className="ml-1">No wrap</span>
-                    </Button>
+                    {shellOutput ? (
+                      <Button type="button" size="sm" variant="ghost" onClick={() => setShellOutput(null)}>
+                        Container logs
+                      </Button>
+                    ) : null}
                   </div>
-                  <pre
-                    className={cn(
-                      "min-h-[14rem] h-[min(36rem,58vh)] resize-y overflow-auto rounded-lg border border-zinc-800 bg-zinc-950 p-3 font-mono text-xs leading-relaxed text-zinc-300",
-                      logWrap ? "whitespace-pre-wrap break-words" : "whitespace-pre",
-                    )}
-                  >
-                    {busy?.startsWith("logs-") && !logsText ? "Loading…" : logsText || "—"}
-                  </pre>
+                  <LogViewer
+                    text={shellOutput ?? logStream.text}
+                    loading={!shellOutput && (logStream.loading || logStream.liveFetching)}
+                    error={shellOutput ? null : logStream.error}
+                    mode={shellOutput ? "snapshot" : "stream"}
+                    emptyLabel="No log lines yet."
+                    className="h-[min(36rem,58vh)] min-h-[14rem]"
+                  />
                 </>
               ) : shellContainer ? (
                 <>
@@ -738,7 +707,7 @@ export function PotContainersPanel({
                           container: shellContainer.name || shellContainer.id,
                           command: shellCmd,
                         });
-                        setLogsText(result.output || result.error || "");
+                        setShellOutput(result.output || result.error || "");
                         setShellContainer(null);
                       } catch (e) {
                         onMessage(e instanceof Error ? e.message : "Exec failed", false);

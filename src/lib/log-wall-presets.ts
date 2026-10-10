@@ -14,6 +14,8 @@ export type LogWindowConfig = {
   w: number;
   /** Grid height in row units (resizable). */
   h: number;
+  /** Hide the filter field in this window. */
+  hideSearch?: boolean;
 };
 
 export type LogWallPreset = {
@@ -55,6 +57,7 @@ function normalizeWindow(w: Partial<LogWindowConfig>, index: number, stackedY: n
     y: hasPos ? Math.max(w.y!, 0) : stackedY,
     w: hasPos ? Math.min(Math.max(w.w!, 3), 12) : 12,
     h,
+    hideSearch: w.hideSearch === true,
   };
 }
 

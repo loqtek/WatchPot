@@ -175,14 +175,20 @@ export function LogWallView({ initialPotId }: Props) {
     [presets],
   );
 
-  const onLayoutChange = useCallback(
-    (next: Layout) => {
-      const mapped = windowsFromLayout(draft.windows, next);
-      setLayout(next.map((l) => ({ ...l })));
-      setDraft((d) => ({ ...d, windows: mapped }));
-    },
-    [draft.windows],
-  );
+  const onLayoutChange = useCallback((next: Layout) => {
+    setLayout(next.map((l) => ({ ...l })));
+    setDraft((d) => {
+      const windows = windowsFromLayout(d.windows, next);
+      const same =
+        windows.length === d.windows.length &&
+        windows.every((w, i) => {
+          const prev = d.windows[i];
+          return prev && prev.id === w.id && prev.x === w.x && prev.y === w.y && prev.w === w.w && prev.h === w.h;
+        });
+      if (same) return d;
+      return { ...d, windows };
+    });
+  }, []);
 
   function addWindow() {
     if (draft.windows.length >= MAX_LOG_WINDOWS) return;
@@ -202,10 +208,11 @@ export function LogWallView({ initialPotId }: Props) {
   }
 
   function applyWindowConfig(updated: LogWindowConfig) {
-    setDraft({
+    const next: LogWallPreset = {
       ...draft,
       windows: draft.windows.map((w) => (w.id === updated.id ? updated : w)),
-    });
+    };
+    persistDraft(next);
   }
 
   function handleSave() {

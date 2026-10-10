@@ -4,6 +4,7 @@ import { useState } from "react";
 import { FileText } from "lucide-react";
 import type { EventRow } from "@/lib/types";
 import { enrichmentDetailRows, isContainerLogEvent, payloadDetailRows } from "@/lib/event-display";
+import { LogViewer } from "@/components/logs/log-viewer";
 import { Button } from "@/components/ui/button";
 import { useFormatDateTime } from "@/hooks/use-format-datetime";
 
@@ -48,9 +49,7 @@ export function EventExpandedDetails({ event }: EventExpandedDetailsProps) {
                   Hide log
                 </Button>
               </div>
-              <pre className="max-h-72 overflow-auto rounded-lg border border-zinc-800 bg-zinc-950 p-3 font-mono text-xs text-zinc-300 whitespace-pre-wrap">
-                {event.raw_log}
-              </pre>
+              <LogViewer text={event.raw_log} mode="snapshot" className="h-72" />
             </div>
           )}
         </div>

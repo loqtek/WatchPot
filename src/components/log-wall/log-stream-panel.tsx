@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
 import { Circle, RefreshCw, Settings2 } from "lucide-react";
 import type { LogWindowConfig } from "@/lib/log-wall-presets";
+import { LogViewer } from "@/components/logs/log-viewer";
 import { useLogStream } from "@/hooks/use-log-stream";
 import { useFormatDateTime } from "@/hooks/use-format-datetime";
 import { Button } from "@/components/ui/button";
@@ -31,8 +31,6 @@ export function LogStreamPanel({
   editMode,
 }: Props) {
   const { formatTime } = useFormatDateTime();
-  const preRef = useRef<HTMLPreElement>(null);
-  const stickToBottomRef = useRef(true);
 
   const configured = Boolean(win.potId && win.container);
   const { text, source, updatedAt, loading, liveFetching, error, refresh } = useLogStream({
@@ -43,19 +41,6 @@ export function LogStreamPanel({
     livePollMs,
     enabled: configured,
   });
-
-  const handleScroll = useCallback(() => {
-    const el = preRef.current;
-    if (!el) return;
-    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
-    stickToBottomRef.current = atBottom;
-  }, []);
-
-  useEffect(() => {
-    if (!stickToBottomRef.current) return;
-    const el = preRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [text]);
 
   const title = configured
     ? `${potName ?? win.potId.slice(0, 8)} · ${win.container}`
@@ -137,26 +122,15 @@ export function LogStreamPanel({
           ) : null}
         </div>
       </div>
-      <div className="relative min-h-0 flex-1">
-        <pre
-          ref={preRef}
-          onScroll={handleScroll}
-          className="h-full overflow-auto rounded-none border-0 bg-recessed p-3 font-mono text-[11px] leading-relaxed text-body whitespace-pre-wrap"
-        >
-          {!configured
-            ? "Configure this window to start streaming logs."
-            : loading && !text
-              ? "Loading logs…"
-              : error && !text
-                ? error
-                : text || "(empty)"}
-        </pre>
-        {error && text ? (
-          <p className="absolute bottom-2 left-2 right-2 truncate rounded bg-red-500/10 px-2 py-1 text-[10px] text-red-300">
-            {error}
-          </p>
-        ) : null}
-      </div>
+      <LogViewer
+        text={configured ? text : ""}
+        loading={loading || liveFetching}
+        error={error}
+        mode="stream"
+        showSearch={!win.hideSearch}
+        emptyLabel={configured ? "No log lines yet." : "Select a pot and container in edit mode."}
+        className="min-h-0 flex-1 rounded-none border-0"
+      />
     </div>
   );
 }

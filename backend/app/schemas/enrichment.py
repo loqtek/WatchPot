@@ -253,6 +253,33 @@ class IpActivityOut(BaseModel):
     rule_names: list[str]
 
 
+class ThreatCommandOut(BaseModel):
+    id: UUID
+    pot_id: UUID
+    pot_name: str | None = None
+    container: str | None
+    kind: str
+    command: str
+    src_ip: str | None
+    session_id: str | None
+    username: str | None
+    hit_count: int
+    observed_at: datetime
+    first_seen_at: datetime
+    last_seen_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class ThreatCommandStatsOut(BaseModel):
+    total: int
+    shell: int
+    http: int
+    login: int
+    download: int
+    unique_ips: int
+
+
 class IpScanRequest(BaseModel):
     lookback_hours: int = Field(default=168, ge=1, le=720)
     limit: int = Field(default=500, ge=1, le=5000)

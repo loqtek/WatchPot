@@ -21,6 +21,7 @@ from app.services.backup_store import server_artifact_path, write_verified_strea
 from app.models.stack import Stack, StackRevision
 from app.schemas.agent import AgentDesiredStack, AgentEventBatchIn, AgentHeartbeatIn
 from app.schemas.pot_ops import AgentCommandComplete, AgentCommandProgress, PotCommandOut
+from app.enrichment.command_capture import schedule_command_capture
 from app.enrichment.ip_intel import schedule_ip_tracking
 from app.enrichment.worker import schedule_enrichment
 from app.services.pot_infra import merge_infra_into_meta
@@ -112,6 +113,7 @@ async def ingest_events(
             pot.meta = merge_infra_into_meta(pot.meta, item.payload, now)
     if new_ids:
         schedule_ip_tracking(new_ids)
+        schedule_command_capture(new_ids)
         schedule_enrichment(new_ids)
     return {"ingested": len(body.events)}
 

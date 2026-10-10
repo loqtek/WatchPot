@@ -137,6 +137,31 @@ export type IpActivity = {
   rule_names: string[];
 };
 
+export type ThreatCommandRow = {
+  id: string;
+  pot_id: string;
+  pot_name: string | null;
+  container: string | null;
+  kind: "shell" | "http" | "login" | "download" | string;
+  command: string;
+  src_ip: string | null;
+  session_id: string | null;
+  username: string | null;
+  hit_count: number;
+  observed_at: string;
+  first_seen_at: string;
+  last_seen_at: string;
+};
+
+export type ThreatCommandStats = {
+  total: number;
+  shell: number;
+  http: number;
+  login: number;
+  download: number;
+  unique_ips: number;
+};
+
 export type IpIntelStats = {
   total: number;
   suspicious: number;

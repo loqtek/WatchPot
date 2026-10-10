@@ -13,6 +13,7 @@ import {
   Server,
 } from "lucide-react";
 import type { EventRow } from "@/lib/types";
+import { LogViewer } from "@/components/logs/log-viewer";
 import {
   channelTone,
   enrichmentDetailRows,
@@ -166,9 +167,7 @@ export function EventListItem({ event, compact = false }: EventListItemProps) {
                       Hide log
                     </Button>
                   </div>
-                  <pre className="max-h-48 overflow-auto rounded-lg border border-zinc-800 bg-zinc-950 p-3 font-mono text-[11px] text-zinc-400 whitespace-pre-wrap">
-                    {event.raw_log}
-                  </pre>
+                  <LogViewer text={event.raw_log ?? ""} mode="snapshot" className="h-48" />
                 </div>
               )}
             </div>

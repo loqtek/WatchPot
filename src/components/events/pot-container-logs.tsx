@@ -1,12 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { FileText, RefreshCw } from "lucide-react";
 import { apiFetch } from "@/lib/api";
-import { fetchCachedContainerLogs } from "@/lib/container-logs";
-import type { CachedContainerLogs } from "@/lib/container-logs";
-import type { PotContainer, PotInfra } from "@/lib/types";
-import { usePotCommand } from "@/hooks/use-pot-command";
+import type { PotInfra } from "@/lib/types";
+import { LogViewer } from "@/components/logs/log-viewer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,8 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { useAsyncData } from "@/hooks/use-async-data";
+import { useLogStream } from "@/hooks/use-log-stream";
 import { useFormatDateTime } from "@/hooks/use-format-datetime";
-import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 
 type PotContainerLogsProps = {
@@ -28,85 +26,22 @@ export function PotContainerLogs({ potId, potName, autoLoad = true }: PotContain
   const { formatDateTime } = useFormatDateTime();
   const fetchInfra = useCallback(() => apiFetch<PotInfra>(`/pots/${potId}/infra`), [potId]);
   const { data: infra, loading, error, refetch } = useAsyncData(fetchInfra);
-  const { runCommand } = usePotCommand(potId);
 
   const containers = infra?.containers ?? [];
   const running = containers.filter(
     (c) => c.state.toLowerCase().includes("running") || c.status.toLowerCase().startsWith("up"),
   );
 
-  const [selected, setSelected] = useState<PotContainer | null>(null);
-  const [logsText, setLogsText] = useState("");
-  const [logSource, setLogSource] = useState<"cached" | "live" | null>(null);
-  const [cachedAt, setCachedAt] = useState<string | null>(null);
-  const [tail, setTail] = useState(150);
-  const [busy, setBusy] = useState(false);
-  const [liveBusy, setLiveBusy] = useState(false);
-
-  async function loadCached(c: PotContainer): Promise<boolean> {
-    const id = encodeURIComponent(c.name || c.id);
-    try {
-      const hit = await apiFetch<CachedContainerLogs | { raw_log: string | null; received_at: string | null }>(
-        `/pots/${potId}/containers/${id}/logs/cached`,
-      );
-      if (hit.raw_log) {
-        setLogsText(hit.raw_log);
-        setLogSource("cached");
-        setCachedAt(hit.received_at ?? null);
-        return true;
-      }
-    } catch {
-      const fallback = await fetchCachedContainerLogs(potId, c.name || c.id);
-      if (fallback?.raw_log) {
-        setLogsText(fallback.raw_log);
-        setLogSource("cached");
-        setCachedAt(fallback.received_at);
-        return true;
-      }
-    }
-    return false;
-  }
-
-  async function fetchLogs(c: PotContainer, { liveOnly = false }: { liveOnly?: boolean } = {}) {
-    setSelected(c);
-    if (!liveOnly) {
-      setBusy(true);
-      const hadCache = await loadCached(c);
-      setBusy(false);
-      if (hadCache && !liveOnly) {
-        setLiveBusy(true);
-      } else if (!liveOnly) {
-        setLogsText("");
-        setLogSource(null);
-        setLiveBusy(true);
-      }
-    } else {
-      setLiveBusy(true);
-    }
-
-    try {
-      const result = await runCommand({
-        action: "logs",
-        container: c.name || c.id,
-        tail,
-      });
-      setLogsText(result.output || result.error || "(empty)");
-      setLogSource("live");
-      setCachedAt(new Date().toISOString());
-      if (result.status === "failed") notify.error(result.error || "Failed to load logs");
-    } catch (e) {
-      if (!logsText) notify.apiError(e, "Failed to load logs");
-    } finally {
-      setLiveBusy(false);
-      setBusy(false);
-    }
-  }
-
-  useEffect(() => {
-    if (!autoLoad || running.length === 0 || selected) return;
-    void fetchLogs(running[0]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoLoad, running.length, infra?.snapshot_at]);
+  const [pickedId, setPickedId] = useState<string | null>(null);
+  const [tail, setTail] = useState(200);
+  const activeId = pickedId ?? (autoLoad ? running[0]?.id ?? null : null);
+  const selected = containers.find((c) => c.id === activeId) ?? null;
+  const stream = useLogStream({
+    potId,
+    container: selected?.name || selected?.id || "",
+    tail,
+    enabled: Boolean(selected),
+  });
 
   return (
     <Card>
@@ -117,11 +52,10 @@ export function PotContainerLogs({ potId, potName, autoLoad = true }: PotContain
             Docker logs · {potName ?? "pot"}
           </CardTitle>
           <CardDescription>
-            Shows cached logs from the event stream immediately, then refreshes live from the pot (agent command loop,
-            typically a few seconds).
+            New lines append in place. Scrolling up pauses follow; Latest jumps back to the end.
           </CardDescription>
         </div>
-        <Button type="button" variant="outline" size="sm" disabled={busy || liveBusy} onClick={() => void refetch()}>
+        <Button type="button" variant="outline" size="sm" onClick={() => void refetch()}>
           <RefreshCw className="mr-1 h-3.5 w-3.5" />
           Refresh list
         </Button>
@@ -147,7 +81,7 @@ export function PotContainerLogs({ potId, potName, autoLoad = true }: PotContain
                 <button
                   key={c.id + c.name}
                   type="button"
-                  onClick={() => void fetchLogs(c)}
+                  onClick={() => setPickedId(c.id)}
                   className={cn(
                     "rounded-lg border px-3 py-2 text-left text-sm transition-colors",
                     selected?.name === c.name
@@ -184,31 +118,30 @@ export function PotContainerLogs({ potId, potName, autoLoad = true }: PotContain
                   type="button"
                   size="sm"
                   variant="secondary"
-                  disabled={busy || liveBusy}
-                  onClick={() => void fetchLogs(selected, { liveOnly: true })}
+                  disabled={stream.loading || stream.liveFetching}
+                  onClick={() => void stream.refresh()}
                 >
-                  {liveBusy ? <Spinner size="sm" className="mr-1" /> : null}
-                  Fetch live
+                  {stream.liveFetching ? <Spinner size="sm" className="mr-1" /> : null}
+                  Refresh
                 </Button>
               ) : null}
-              {logSource && cachedAt ? (
+              {stream.updatedAt ? (
                 <span className="text-xs text-zinc-500">
-                  {logSource === "cached" && liveBusy
-                    ? "Cached snapshot · fetching live…"
-                    : logSource === "cached"
-                      ? `Cached · ${formatDateTime(cachedAt)}`
-                      : `Live · ${formatDateTime(cachedAt)}`}
+                  {stream.liveFetching
+                    ? "Updating…"
+                    : `${stream.source === "live" ? "Live" : "Cached"} · ${formatDateTime(stream.updatedAt)}`}
                 </span>
               ) : null}
             </div>
 
-            <pre className="max-h-[min(28rem,50vh)] overflow-auto rounded-xl border border-line bg-recessed p-4 font-mono text-xs text-body whitespace-pre-wrap">
-              {busy && !logsText
-                ? "Loading cached logs…"
-                : liveBusy && !logsText
-                  ? "Waiting for agent…"
-                  : logsText || "Select a container to view logs."}
-            </pre>
+            <LogViewer
+              text={stream.text}
+              loading={stream.loading || stream.liveFetching}
+              error={stream.error}
+              mode="stream"
+              emptyLabel={selected ? "No log lines yet." : "Select a container to view logs."}
+              className="h-[min(28rem,50vh)]"
+            />
           </>
         )}
       </CardContent>

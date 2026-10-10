@@ -14,6 +14,7 @@ from app.deps import get_current_user
 from app.enrichment.bootstrap import ensure_builtin_rules, ensure_default_schedules
 from app.enrichment.config import load_config, save_config
 from app.enrichment.cve import cve_stats, ensure_catalog_cves, seed_cve_cache, sync_cve_cache
+from app.enrichment.command_capture import command_stats, scan_events_for_commands
 from app.enrichment.ip_intel import ip_hit_activity, ip_intel_stats, lookup_ip_geo, scan_events_for_ips
 from app.enrichment.engine import test_sample
 from app.enrichment.scheduler import run_schedule, schedule_next_run
@@ -21,6 +22,8 @@ from app.enrichment.worker import batch_reenrich
 from app.models.cve_entry import CveEntry
 from app.models.enrichment_rule import EnrichmentRule
 from app.models.enrichment_schedule import EnrichmentSchedule
+from app.models.pot import Pot
+from app.models.threat_command import ThreatCommand
 from app.models.threat_ip import ThreatIp
 from app.models.user import User
 from app.schemas.enrichment import (
@@ -40,6 +43,8 @@ from app.schemas.enrichment import (
     EnrichmentStatsOut,
     IpActivityOut,
     IpIntelStatsOut,
+    ThreatCommandOut,
+    ThreatCommandStatsOut,
     IpScanRequest,
     ReprocessRequest,
     RuleTestRequest,
@@ -732,6 +737,64 @@ async def scan_ips(
     )
     total = int((await db.execute(select(func.count()).select_from(ThreatIp))).scalar_one())
     return {"ok": True, "events_scanned": events, "ips_found": ips, "total_tracked": total}
+
+
+@router.get("/commands/stats", response_model=ThreatCommandStatsOut)
+async def get_command_stats(
+    _: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> ThreatCommandStatsOut:
+    return ThreatCommandStatsOut.model_validate(await command_stats(db))
+
+
+@router.get("/commands", response_model=list[ThreatCommandOut])
+async def list_commands(
+    _: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    q: str | None = Query(default=None),
+    kind: str | None = Query(default=None),
+    limit: int = Query(default=150, ge=1, le=500),
+) -> list[ThreatCommandOut]:
+    stmt = select(ThreatCommand).order_by(ThreatCommand.observed_at.desc()).limit(limit)
+    if kind:
+        stmt = stmt.where(ThreatCommand.kind == kind.strip().lower())
+    if q and q.strip():
+        like = f"%{q.strip()}%"
+        stmt = stmt.where(
+            (ThreatCommand.command.ilike(like))
+            | (ThreatCommand.src_ip.ilike(like))
+            | (ThreatCommand.container.ilike(like))
+            | (ThreatCommand.username.ilike(like))
+        )
+    rows = list((await db.execute(stmt)).scalars().all())
+    pot_ids = {row.pot_id for row in rows}
+    names: dict = {}
+    if pot_ids:
+        named = (await db.execute(select(Pot.id, Pot.name).where(Pot.id.in_(pot_ids)))).all()
+        names = {pot_id: name for pot_id, name in named}
+    return [
+        ThreatCommandOut.model_validate(row).model_copy(update={"pot_name": names.get(row.pot_id)})
+        for row in rows
+    ]
+
+
+@router.post("/commands/scan")
+async def scan_commands(
+    request: Request,
+    body: IpScanRequest,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    events, found = await scan_events_for_commands(db, lookback_hours=body.lookback_hours, limit=body.limit)
+    await write_audit(
+        db,
+        action="enrichment.command.scan",
+        actor_user_id=user.id,
+        detail={"events": events, "commands_found": found},
+        ip_address=request.client.host if request.client else None,
+    )
+    total = int((await db.execute(select(func.count()).select_from(ThreatCommand))).scalar_one())
+    return {"ok": True, "events_scanned": events, "commands_found": found, "total_tracked": total}
 
 
 @router.post("/bootstrap/seed")
