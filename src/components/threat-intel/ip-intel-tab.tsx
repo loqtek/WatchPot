@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore, type PointerEvent as ReactPointerEvent } from "react";
 import Link from "next/link";
 import { Box, Globe, MapPin, RefreshCw, Scan, ShieldAlert } from "lucide-react";
 import { apiFetch } from "@/lib/api";
@@ -26,6 +26,38 @@ import { Table, TableWrap, TBody, Td, Th, THead, Tr } from "@/components/ui/data
 import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
 
+const IP_DETAIL_WIDTH_KEY = "watchpot.ip-intel.detail-width";
+const IP_DETAIL_WIDTH_EVENT = "watchpot-ip-detail-width";
+
+function clampDetailWidth(value: number) {
+  return Math.min(860, Math.max(320, Math.round(value)));
+}
+
+function readDetailWidth() {
+  try {
+    const raw = Number(localStorage.getItem(IP_DETAIL_WIDTH_KEY));
+    return Number.isFinite(raw) && raw > 0 ? clampDetailWidth(raw) : 540;
+  } catch {
+    return 540;
+  }
+}
+
+function writeDetailWidth(value: number) {
+  const next = clampDetailWidth(value);
+  localStorage.setItem(IP_DETAIL_WIDTH_KEY, String(next));
+  window.dispatchEvent(new Event(IP_DETAIL_WIDTH_EVENT));
+  return next;
+}
+
+function subscribeDetailWidth(onStoreChange: () => void) {
+  window.addEventListener(IP_DETAIL_WIDTH_EVENT, onStoreChange);
+  window.addEventListener("storage", onStoreChange);
+  return () => {
+    window.removeEventListener(IP_DETAIL_WIDTH_EVENT, onStoreChange);
+    window.removeEventListener("storage", onStoreChange);
+  };
+}
+
 function geoLine(geo: ThreatIp["geo"]) {
   if (!geo) return "—";
   const parts = [geo.city, geo.region, geo.country].filter(Boolean);
@@ -34,6 +66,9 @@ function geoLine(geo: ThreatIp["geo"]) {
 
 export function IpIntelTab() {
   const { formatDateTime } = useFormatDateTime();
+  const storedDetailWidth = useSyncExternalStore(subscribeDetailWidth, readDetailWidth, () => 540);
+  const [dragWidth, setDragWidth] = useState<number | null>(null);
+  const detailWidth = dragWidth ?? storedDetailWidth;
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [selected, setSelected] = useState<ThreatIp | null>(null);
@@ -149,6 +184,30 @@ export function IpIntelTab() {
     };
   }, [selected]);
 
+  function startDetailResize(event: ReactPointerEvent<HTMLDivElement>) {
+    event.preventDefault();
+    const startX = event.clientX;
+    const startW = detailWidth;
+    const row = event.currentTarget.parentElement;
+    const max = row ? Math.min(860, Math.max(360, row.clientWidth * 0.72)) : 860;
+    const nextWidth = (clientX: number) => Math.min(max, Math.max(320, clampDetailWidth(startW - (clientX - startX))));
+    const previousCursor = document.body.style.cursor;
+    const previousSelect = document.body.style.userSelect;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    const move = (ev: PointerEvent) => setDragWidth(nextWidth(ev.clientX));
+    const up = (ev: PointerEvent) => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      document.body.style.cursor = previousCursor;
+      document.body.style.userSelect = previousSelect;
+      writeDetailWidth(nextWidth(ev.clientX));
+      setDragWidth(null);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  }
+
   return (
     <div className="space-y-6">
       {stats ? (
@@ -172,8 +231,8 @@ export function IpIntelTab() {
         </div>
       ) : null}
 
-      <div className="grid gap-6 xl:grid-cols-[1fr_380px]">
-        <Card>
+      <div className="flex flex-col gap-6 xl:flex-row xl:items-start">
+        <Card className="min-w-0 xl:min-w-[20rem] xl:flex-1">
           <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <CardTitle className="text-base">Bad IP intelligence</CardTitle>
@@ -282,11 +341,27 @@ export function IpIntelTab() {
           </CardContent>
         </Card>
 
-        <div className="space-y-4">
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-valuenow={detailWidth}
+          aria-valuemin={320}
+          aria-valuemax={860}
+          aria-label="Resize IP details"
+          title="Drag to resize"
+          className="group hidden w-3 shrink-0 cursor-col-resize touch-none items-stretch justify-center self-stretch xl:flex"
+          onPointerDown={startDetailResize}
+        >
+          <span className="my-2 w-px rounded-full bg-line transition-colors group-hover:bg-ink group-active:bg-ink" />
+        </div>
+        <div
+          className="ip-intel-detail min-w-0 w-full space-y-4"
+          style={{ ["--ip-detail-width" as string]: `${detailWidth}px` }}
+        >
           {selected ? (
-            <Card>
+            <Card className="min-w-0">
               <CardHeader>
-                <CardTitle className="font-mono text-lg">{selected.ip_address}</CardTitle>
+                <CardTitle className="break-all font-mono text-lg">{selected.ip_address}</CardTitle>
                 <CardDescription className="flex flex-wrap gap-1.5 pt-1">
                   <Badge tone={toneForIpStatus(selected.status)}>{selected.status}</Badge>
                   {selected.is_tor ? <Badge tone="danger">Tor</Badge> : null}
@@ -298,7 +373,7 @@ export function IpIntelTab() {
                   ) : null}
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4 text-sm">
+              <CardContent className="space-y-4 break-words text-sm">
                 <div className="rounded-lg border border-zinc-800 bg-zinc-950/80 p-3 space-y-2">
                   <div className="flex items-center gap-2 text-zinc-400">
                     <MapPin className="h-4 w-4" />

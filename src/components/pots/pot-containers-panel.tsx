@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useMemo, useState, useSyncExternalStore, type MouseEvent } from "react";
 import Link from "next/link";
 import {
   Box,
@@ -57,6 +57,21 @@ type StatusFilter = "all" | ContainerRuntimeStatus;
 type ViewMode = "stacks" | "table";
 
 const VIEW_MODE_KEY = "watchpot.containers.viewMode";
+
+function blockFocusScroll(event: MouseEvent) {
+  event.preventDefault();
+}
+
+function restoreWindowScroll(x: number, y: number) {
+  const apply = () => {
+    if (window.scrollX !== x || window.scrollY !== y) window.scrollTo(x, y);
+  };
+  apply();
+  requestAnimationFrame(() => {
+    apply();
+    requestAnimationFrame(apply);
+  });
+}
 const VIEW_MODE_EVENT = "watchpot-containers-view";
 
 function subscribeViewMode(onChange: () => void) {
@@ -197,7 +212,10 @@ export function PotContainersPanel({
     key: string,
     body: { action: string; container?: string; stack_id?: string; tail?: number; command?: string },
   ) {
+    const scrollX = window.scrollX;
+    const scrollY = window.scrollY;
     setBusy(key);
+    restoreWindowScroll(scrollX, scrollY);
     try {
       const result = await runCommand(body);
       if (result.status === "failed") {
@@ -213,6 +231,7 @@ export function PotContainersPanel({
         }
       }
       await refetch();
+      restoreWindowScroll(scrollX, scrollY);
       onMessage(`${body.action} completed`, true);
       return result;
     } catch (e) {
@@ -220,6 +239,7 @@ export function PotContainersPanel({
       return null;
     } finally {
       setBusy(null);
+      restoreWindowScroll(scrollX, scrollY);
     }
   }
 
@@ -228,16 +248,21 @@ export function PotContainersPanel({
       onRefreshInfra();
       return;
     }
+    const scrollX = window.scrollX;
+    const scrollY = window.scrollY;
     setBusy("infra");
+    restoreWindowScroll(scrollX, scrollY);
     try {
       const res = await apiFetch<{ command_id: string }>(`/pots/${potId}/refresh-infra`, { method: "POST" });
       await waitForCommand(res.command_id, 60_000);
       await refetch();
+      restoreWindowScroll(scrollX, scrollY);
       onMessage("Docker snapshot updated", true);
     } catch (e) {
       onMessage(e instanceof Error ? e.message : "Refresh failed", false);
     } finally {
       setBusy(null);
+      restoreWindowScroll(scrollX, scrollY);
     }
   }
 
@@ -280,7 +305,7 @@ export function PotContainersPanel({
     const rt = classifyContainer(c);
     const isRunning = rt === "running";
     return (
-      <div className={cn("flex flex-wrap gap-1", compact && "justify-end")}>
+      <div className={cn("flex flex-wrap gap-1", compact && "justify-end")} onMouseDown={blockFocusScroll}>
         <Button type="button" variant="ghost" size="sm" disabled={!!busy} onClick={() => openLogs(c)} title="Logs">
           {logStream.loading && selected?.id === c.id ? <Spinner size="sm" /> : <FileText className="h-3.5 w-3.5" />}
           {!compact ? <span className="ml-1">Logs</span> : null}
@@ -521,7 +546,7 @@ export function PotContainersPanel({
                           )}
                         </div>
                       </button>
-                      <div className="flex flex-wrap gap-1.5 shrink-0">
+                      <div className="flex flex-wrap gap-1.5 shrink-0" onMouseDown={blockFocusScroll}>
                         <Button type="button" variant="secondary" size="sm" asChild>
                           <Link href={`/pots/${potId}/stacks/${g.stack.id}`}>
                             <FileCode2 className="mr-1 h-3.5 w-3.5" />

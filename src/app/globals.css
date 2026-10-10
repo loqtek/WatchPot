@@ -255,6 +255,13 @@ pre {
   border-color: var(--line);
 }
 
+@media (min-width: 80rem) {
+  .ip-intel-detail {
+    width: var(--ip-detail-width, 34rem);
+    flex: none;
+  }
+}
+
 html:not([data-theme="dark"]) .theme-when-dark,
 html[data-theme="dark"] .theme-when-light {
   display: none !important;
