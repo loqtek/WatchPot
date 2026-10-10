@@ -26,7 +26,7 @@ export function WidgetPanel({
   return (
     <div
       className={cn(
-        "group/panel relative flex h-full flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-card",
+        "group/panel relative flex h-full flex-col overflow-hidden rounded-xl border border-line bg-surface shadow-card",
         editMode && "ring-1 ring-ink/20",
         !showHeader && "border-zinc-800/60",
         className,
@@ -35,7 +35,7 @@ export function WidgetPanel({
       {showHeader ? (
         <div
           className={cn(
-            "flex shrink-0 items-center justify-between gap-1 border-b border-line bg-recessed px-3 py-2",
+            "flex shrink-0 items-center justify-between gap-1 border-b border-line bg-recessed px-2.5 py-1",
             editMode && "panel-drag-handle cursor-grab active:cursor-grabbing",
           )}
         >

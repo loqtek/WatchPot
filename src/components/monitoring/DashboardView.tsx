@@ -295,7 +295,7 @@ export function DashboardView({
             gridConfig={{
               cols: detail.grid_cols || 12,
               rowHeight: 28,
-              margin: [6, 6],
+              margin: [4, 4],
               containerPadding: [0, 0],
             }}
             dragConfig={{ enabled: editMode, handle: ".panel-drag-handle", cancel: ".panel-actions" }}
@@ -306,7 +306,7 @@ export function DashboardView({
             {detail.widgets.map((w) => {
               const parsed = parseWidgetConfig(w.config);
               const queryConfig = effectiveQueryConfig(w.config, globalRange);
-              const subtitle = widgetConfigSummary(w, globalRange);
+              const subtitle = editMode ? widgetConfigSummary(w, globalRange) : "";
               return (
                 <div key={w.id} className="h-full">
                   <WidgetPanel

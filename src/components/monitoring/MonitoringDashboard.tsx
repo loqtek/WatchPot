@@ -13,9 +13,9 @@ import { DashboardView, type WidgetSpec } from "./DashboardView";
 import { useFormatDateTime } from "@/hooks/use-format-datetime";
 
 const WIDGET_CATALOG: WidgetSpec[] = [
-  { type: "stat_total", title: "Total events", description: "Event count for the selected window", category: "metrics", w: 2, h: 2, config: { range: "24h", show_header: false } },
-  { type: "stat_rate", title: "Events / hour", description: "Average ingest rate", category: "metrics", w: 2, h: 2, config: { range: "24h", show_header: false } },
-  { type: "comparison_24h", title: "24h change", description: "Current vs prior 24h window", category: "metrics", w: 3, h: 2, config: { show_header: false, compact: true } },
+  { type: "stat_total", title: "Total events", description: "Event count for the selected window", category: "metrics", w: 4, h: 3, config: { range: "24h", show_header: false } },
+  { type: "stat_rate", title: "Events / hour", description: "Average ingest rate", category: "metrics", w: 4, h: 3, config: { range: "24h", show_header: false } },
+  { type: "comparison_24h", title: "24h change", description: "Current vs prior 24h window", category: "metrics", w: 4, h: 3, config: { show_header: false, compact: true } },
   { type: "timeseries_line", title: "Event volume", description: "Time-series throughput", category: "charts", w: 8, h: 5, config: { range: "24h", bucket: "hour" } },
   { type: "area_severity", title: "Severity over time", description: "Stacked severity timeline", category: "charts", w: 12, h: 5, config: { range: "24h" } },
   { type: "pie_severity", title: "Severity distribution", description: "Breakdown by severity level", category: "charts", w: 4, h: 5, config: { range: "24h" } },
