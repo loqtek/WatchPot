@@ -183,7 +183,7 @@ function OverviewTab({
                 <BreakdownCard title="CVE correlations" items={stats.by_cve} mono />
               </div>
 
-              <Card className="border-zinc-800 bg-zinc-950/30">
+              <Card className="overflow-hidden border-zinc-800 bg-zinc-950/30">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm">Recent matches</CardTitle>
                 </CardHeader>
@@ -191,7 +191,7 @@ function OverviewTab({
                   {stats.recent_matches.length === 0 ? (
                     <EmptyState icon={Shield} title="No matches yet" description="Deploy honeypots and wait for traffic, or test rules with sample text." />
                   ) : (
-                    <TableWrap>
+                    <TableWrap className="rounded-none border-0 bg-transparent shadow-none">
                       <Table>
                         <THead>
                           <Tr>
@@ -616,6 +616,7 @@ function SchedulesTab() {
   const { data: schedules, loading, refetch } = useAsyncData(fetchSchedules);
   const [draft, setDraft] = useState<Partial<EnrichmentSchedule> | null>(null);
   const [busy, setBusy] = useState(false);
+  const [runningId, setRunningId] = useState<string | null>(null);
 
   async function saveSchedule() {
     if (!draft?.name?.trim()) {
@@ -647,12 +648,15 @@ function SchedulesTab() {
   }
 
   async function runNow(id: string) {
+    setRunningId(id);
     try {
       const res = await apiFetch<{ message: string }>(`/enrichment/schedules/${id}/run`, { method: "POST" });
       notify.success(res.message || "Schedule ran");
       refetch();
     } catch (e) {
       notify.apiError(e);
+    } finally {
+      setRunningId(null);
     }
   }
 
@@ -727,8 +731,16 @@ function SchedulesTab() {
                       </Td>
                       <Td>
                         <div className="flex justify-end gap-1">
-                          <Button type="button" variant="ghost" size="sm" onClick={() => runNow(s.id)}>
-                            <Play className="h-3.5 w-3.5" />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            disabled={runningId === s.id}
+                            aria-busy={runningId === s.id}
+                            title={runningId === s.id ? "Running" : "Run now"}
+                            onClick={() => runNow(s.id)}
+                          >
+                            {runningId === s.id ? <Spinner size="sm" /> : <Play className="h-3.5 w-3.5" />}
                           </Button>
                           <Button type="button" variant="ghost" size="sm" onClick={() => setDraft(s)}>
                             Edit

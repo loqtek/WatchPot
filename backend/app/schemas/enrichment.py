@@ -220,6 +220,39 @@ class ThreatIpUpdate(BaseModel):
     tags: list[str] | None = None
 
 
+class IpHitOut(BaseModel):
+    event_id: UUID
+    pot_id: UUID
+    pot_name: str | None
+    container: str | None
+    service_name: str | None
+    event_type: str
+    received_at: datetime
+    port: int | None = None
+    source: str | None = None
+    attack_types: list[str] = Field(default_factory=list)
+    tools: list[str] = Field(default_factory=list)
+    cve_ids: list[str] = Field(default_factory=list)
+    rule_names: list[str] = Field(default_factory=list)
+    confidence: float | None = None
+
+
+class IpPotRef(BaseModel):
+    id: str
+    name: str
+
+
+class IpActivityOut(BaseModel):
+    ip_address: str
+    hits: list[IpHitOut]
+    pots: list[IpPotRef]
+    containers: list[str]
+    attack_types: list[str]
+    tools: list[str]
+    cve_ids: list[str]
+    rule_names: list[str]
+
+
 class IpScanRequest(BaseModel):
     lookback_hours: int = Field(default=168, ge=1, le=720)
     limit: int = Field(default=500, ge=1, le=5000)

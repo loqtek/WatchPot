@@ -1,12 +1,14 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
-import { Globe, MapPin, RefreshCw, Scan, ShieldAlert } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { Box, Globe, MapPin, RefreshCw, Scan, ShieldAlert } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import {
   ATTACK_TYPE_LABELS,
   IP_STATUS_OPTIONS,
   toneForIpStatus,
+  type IpActivity,
   type IpIntelStats,
   type ThreatIp,
 } from "@/lib/enrichment-types";
@@ -37,6 +39,8 @@ export function IpIntelTab() {
   const [selected, setSelected] = useState<ThreatIp | null>(null);
   const [busy, setBusy] = useState(false);
   const [notesDraft, setNotesDraft] = useState("");
+  const [activity, setActivity] = useState<IpActivity | null>(null);
+  const [activityLoading, setActivityLoading] = useState(false);
 
   const fetchStats = useCallback(() => apiFetch<IpIntelStats>("/enrichment/ips/stats"), []);
   const { data: stats, refetch: refetchStats } = useAsyncData(fetchStats);
@@ -122,6 +126,28 @@ export function IpIntelTab() {
     setSelected(row);
     setNotesDraft(row.user_notes ?? "");
   }
+
+  useEffect(() => {
+    if (!selected) {
+      setActivity(null);
+      return;
+    }
+    let cancel = false;
+    setActivityLoading(true);
+    apiFetch<IpActivity>(`/enrichment/ips/${encodeURIComponent(selected.ip_address)}/activity`)
+      .then((data) => {
+        if (!cancel) setActivity(data);
+      })
+      .catch(() => {
+        if (!cancel) setActivity(null);
+      })
+      .finally(() => {
+        if (!cancel) setActivityLoading(false);
+      });
+    return () => {
+      cancel = true;
+    };
+  }, [selected]);
 
   return (
     <div className="space-y-6">
@@ -316,29 +342,109 @@ export function IpIntelTab() {
                   </div>
                 </dl>
 
-                {(selected.attack_types?.length ?? 0) > 0 ? (
-                  <div>
-                    <p className="text-[10px] uppercase text-zinc-500 mb-1">Attack types</p>
-                    <div className="flex flex-wrap gap-1">
-                      {selected.attack_types!.map((a) => (
-                        <Badge key={a} tone="warning">
-                          {ATTACK_TYPE_LABELS[a] ?? a}
-                        </Badge>
-                      ))}
+                <div className="space-y-3 rounded-xl border border-line bg-recessed p-3">
+                  <p className="text-[10px] uppercase tracking-wide text-zinc-500">Where it hit</p>
+                  {activityLoading ? (
+                    <div className="flex items-center gap-2 text-xs text-zinc-500">
+                      <Spinner size="sm" />
+                      Loading hits…
                     </div>
-                  </div>
-                ) : null}
-
-                {(selected.cve_ids?.length ?? 0) > 0 ? (
-                  <div>
-                    <p className="text-[10px] uppercase text-zinc-500 mb-1">Related CVEs</p>
-                    <div className="flex flex-wrap gap-1 font-mono text-xs text-emerald-400">
-                      {selected.cve_ids!.map((c) => (
-                        <span key={c}>{c}</span>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
+                  ) : (
+                    <>
+                      <div>
+                        <p className="mb-1 text-[10px] uppercase text-zinc-500">Pots</p>
+                        {activity && activity.pots.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {activity.pots.map((pot) => (
+                              <Link key={pot.id} href={`/pots/${pot.id}`}>
+                                <Badge tone="info">{pot.name}</Badge>
+                              </Link>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-zinc-500">No pot recorded for this IP yet.</p>
+                        )}
+                      </div>
+                      <div>
+                        <p className="mb-1 flex items-center gap-1 text-[10px] uppercase text-zinc-500">
+                          <Box className="h-3 w-3" />
+                          Containers
+                        </p>
+                        {activity && activity.containers.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {activity.containers.map((name) => (
+                              <Badge key={name} tone="default" className="font-mono normal-case tracking-normal">
+                                {name}
+                              </Badge>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-zinc-500">No container was attached to these hits.</p>
+                        )}
+                      </div>
+                      <div>
+                        <p className="mb-1 text-[10px] uppercase text-zinc-500">Matches</p>
+                        {activity &&
+                        (activity.attack_types.length > 0 ||
+                          activity.rule_names.length > 0 ||
+                          activity.tools.length > 0 ||
+                          activity.cve_ids.length > 0) ? (
+                          <div className="flex flex-wrap gap-1">
+                            {activity.attack_types.map((a) => (
+                              <Badge key={a} tone="warning">
+                                {ATTACK_TYPE_LABELS[a] ?? a}
+                              </Badge>
+                            ))}
+                            {activity.rule_names.map((rule) => (
+                              <Badge key={rule} tone="info" className="normal-case tracking-normal">
+                                {rule}
+                              </Badge>
+                            ))}
+                            {activity.tools.map((tool) => (
+                              <Badge key={tool} tone="default" className="normal-case tracking-normal">
+                                {tool}
+                              </Badge>
+                            ))}
+                            {activity.cve_ids.map((cve) => (
+                              <span key={cve} className="font-mono text-xs text-emerald-400">
+                                {cve}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-zinc-500">No enrichment matches on record for this IP.</p>
+                        )}
+                      </div>
+                      {activity && activity.hits.length > 0 ? (
+                        <ul className="max-h-52 space-y-2 overflow-auto border-t border-line pt-2">
+                          {activity.hits.map((hit) => {
+                            const matchBits = [
+                              ...hit.attack_types.map((a) => ATTACK_TYPE_LABELS[a] ?? a),
+                              ...hit.rule_names,
+                              ...hit.tools,
+                              ...hit.cve_ids,
+                            ];
+                            return (
+                              <li key={hit.event_id} className="text-xs">
+                                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                                  <span className="text-zinc-500">{formatDateTime(hit.received_at)}</span>
+                                  <Link href={`/events?pot_id=${hit.pot_id}`} className="text-emerald-400 hover:text-emerald-300">
+                                    {hit.pot_name ?? "pot"}
+                                  </Link>
+                                  <span className="font-mono text-zinc-300">{hit.container ?? hit.service_name ?? "—"}</span>
+                                  {hit.port ? <span className="text-zinc-500">:{hit.port}</span> : null}
+                                </div>
+                                <p className="text-zinc-500">
+                                  {matchBits.length > 0 ? matchBits.join(" · ") : hit.event_type}
+                                </p>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      ) : null}
+                    </>
+                  )}
+                </div>
 
                 <div>
                   <Label>Operator notes</Label>

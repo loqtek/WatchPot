@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Archive,
@@ -11,9 +11,11 @@ import {
   Container,
   HardDrive,
   Play,
+  ScrollText,
   Server,
   Settings2,
   Trash2,
+  X,
 } from "lucide-react";
 import { BackupManageModal } from "@/components/backups/backup-manage-modal";
 import { apiDownload, apiFetch } from "@/lib/api";
@@ -32,6 +34,7 @@ import type {
   Pot,
   PotContainer,
   PotInfra,
+  PotCommand,
   SnapshotRow,
 } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
@@ -63,7 +66,8 @@ export function BackupsDashboard() {
   const fetchSnapshots = useCallback(() => apiFetch<SnapshotRow[]>("/snapshots"), []);
   const fetchPots = useCallback(() => apiFetch<Pot[]>("/pots"), []);
 
-  const { data: jobs, loading: jobsLoading, error: jobsError, refetch: refetchJobs } = useAsyncData(fetchJobs);
+  const { data: jobs, loading: jobsLoading, error: jobsError, refetch: refetchJobs, refresh: refreshJobs } =
+    useAsyncData(fetchJobs);
   const {
     data: schedules,
     loading: schedulesLoading,
@@ -74,6 +78,15 @@ export function BackupsDashboard() {
   const { data: pots } = useAsyncData(fetchPots);
 
   const jobList = useMemo(() => jobs ?? [], [jobs]);
+
+  useEffect(() => {
+    const active = jobList.some(
+      (job) => job.status === "pending" || job.status === "running" || job.ingest_status === "transferring",
+    );
+    if (!active) return;
+    const id = window.setInterval(() => void refreshJobs(), 4000);
+    return () => window.clearInterval(id);
+  }, [jobList, refreshJobs]);
   const scheduleList = useMemo(() => schedules ?? [], [schedules]);
   const snapList = snapshots ?? [];
   const potList = pots ?? [];
@@ -175,12 +188,138 @@ function StatTile({
   );
 }
 
+function formatCommandLog(cmd: PotCommand | null): string {
+  if (!cmd) return "Loading logs…";
+  const raw = (cmd.output || "").trim();
+  if (raw.startsWith("{")) {
+    try {
+      const data = JSON.parse(raw) as { log?: unknown };
+      if (Array.isArray(data.log) && data.log.length > 0) {
+        return data.log.map((line) => String(line)).join("\n");
+      }
+    } catch {
+      /* keep the raw text */
+    }
+  }
+  if (raw) return raw;
+  if (cmd.error) return cmd.error;
+  if (cmd.status === "pending") return "Queued. Waiting for the agent to pick up this backup…";
+  if (cmd.status === "running") return "Running. Waiting for the first progress line from the agent…";
+  return "No log output was recorded.";
+}
+
+function BackupLogDialog({
+  job,
+  onClose,
+  onFinished,
+}: {
+  job: BackupJobRow;
+  onClose: () => void;
+  onFinished: () => void;
+}) {
+  const choices = useMemo(() => {
+    const items: { id: string; label: string }[] = [];
+    if (job.command_id) items.push({ id: job.command_id, label: "Backup" });
+    if (job.ingest_command_id) items.push({ id: job.ingest_command_id, label: "Copy to server" });
+    return items;
+  }, [job.command_id, job.ingest_command_id]);
+  const preferred =
+    (job.ingest_status === "transferring" || job.ingest_status === "pending") && job.ingest_command_id
+      ? job.ingest_command_id
+      : job.command_id;
+  const [commandId, setCommandId] = useState(preferred ?? choices[0]?.id ?? "");
+  const [cmd, setCmd] = useState<PotCommand | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const onFinishedRef = useRef(onFinished);
+
+  useEffect(() => {
+    onFinishedRef.current = onFinished;
+  }, [onFinished]);
+
+  useEffect(() => {
+    if (!commandId) return;
+    let stop = false;
+    let timer = 0;
+    async function tick() {
+      try {
+        const next = await apiFetch<PotCommand>(`/pots/${job.pot_id}/commands/${commandId}`);
+        if (stop) return;
+        setCmd(next);
+        setError(null);
+        if (next.status === "pending" || next.status === "running") {
+          timer = window.setTimeout(() => void tick(), 2000);
+        } else {
+          onFinishedRef.current();
+        }
+      } catch (e) {
+        if (stop) return;
+        setError(e instanceof Error ? e.message : "Could not load logs");
+        timer = window.setTimeout(() => void tick(), 4000);
+      }
+    }
+    void tick();
+    return () => {
+      stop = true;
+      window.clearTimeout(timer);
+    };
+  }, [commandId, job.pot_id]);
+
+  const active = cmd?.status === "pending" || cmd?.status === "running";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="backup-log-title">
+      <button type="button" className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" aria-label="Close" onClick={onClose} />
+      <div className="relative z-10 flex max-h-[min(90vh,40rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-2xl">
+        <div className="flex items-start justify-between gap-3 border-b border-line px-5 py-4">
+          <div className="min-w-0">
+            <h2 id="backup-log-title" className="truncate text-base font-semibold text-ink">
+              {job.name}
+            </h2>
+            <p className="mt-1 text-sm text-muted">Live agent output for this backup. Leave this open if a job sits running.</p>
+          </div>
+          <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label="Close">
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 border-b border-line px-5 py-3">
+          {choices.map((choice) => (
+            <Button
+              key={choice.id}
+              type="button"
+              size="sm"
+              variant={commandId === choice.id ? "primary" : "outline"}
+              onClick={() => {
+                setCmd(null);
+                setCommandId(choice.id);
+              }}
+            >
+              {choice.label}
+            </Button>
+          ))}
+          {cmd ? <Badge tone={backupStatusTone(cmd.status)}>{cmd.status}</Badge> : null}
+          {active ? (
+            <span className="inline-flex items-center gap-1.5 text-xs text-muted">
+              <Spinner size="sm" />
+              Updating
+            </span>
+          ) : null}
+        </div>
+        <pre className="min-h-48 flex-1 overflow-auto rounded-none bg-recessed px-5 py-4 font-mono text-xs leading-relaxed text-body whitespace-pre-wrap">
+          {!commandId ? "This job has no agent command to read." : error ?? formatCommandLog(cmd)}
+        </pre>
+      </div>
+    </div>
+  );
+}
+
 function JobRow({
   job,
   onManage,
+  onLogs,
 }: {
   job: BackupJobRow;
   onManage: () => void;
+  onLogs: () => void;
 }) {
   const { formatDateTime } = useFormatDateTime();
   return (
@@ -217,7 +356,19 @@ function JobRow({
         {formatDateTime(job.created_at)}
       </Td>
       <Td>
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-1.5">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs"
+            disabled={!job.command_id && !job.ingest_command_id}
+            title={job.command_id ? "View backup logs" : "No agent command for this job"}
+            onClick={onLogs}
+          >
+            <ScrollText className="mr-1.5 h-3.5 w-3.5" />
+            Logs
+          </Button>
           <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={onManage}>
             <Settings2 className="mr-1.5 h-3.5 w-3.5" />
             Manage
@@ -258,7 +409,9 @@ function RepositoryTab({
   const { formatDateTime } = useFormatDateTime();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [manageJobId, setManageJobId] = useState<string | null>(null);
+  const [logJobId, setLogJobId] = useState<string | null>(null);
   const manageJob = manageJobId ? (jobs.find((j) => j.id === manageJobId) ?? null) : null;
+  const logJob = logJobId ? (jobs.find((j) => j.id === logJobId) ?? null) : null;
 
   async function ingestJob(jobId: string) {
     setBusyId(jobId);
@@ -275,6 +428,14 @@ function RepositoryTab({
 
   return (
     <div className="space-y-8">
+      {logJob ? (
+        <BackupLogDialog
+          job={logJob}
+          onClose={() => setLogJobId(null)}
+          onFinished={onRefresh}
+        />
+      ) : null}
+
       <BackupManageModal
         open={manageJobId !== null}
         job={manageJob}
@@ -346,7 +507,12 @@ function RepositoryTab({
                 <TableEmptyRow colSpan={8}>No backup jobs yet. Run a backup to get started.</TableEmptyRow>
               ) : (
                 jobs.map((j) => (
-                  <JobRow key={j.id} job={j} onManage={() => setManageJobId(j.id)} />
+                  <JobRow
+                    key={j.id}
+                    job={j}
+                    onManage={() => setManageJobId(j.id)}
+                    onLogs={() => setLogJobId(j.id)}
+                  />
                 ))
               )}
             </TBody>

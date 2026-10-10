@@ -68,6 +68,16 @@ class ControlClient:
             r.raise_for_status()
             return r.json()
 
+    async def progress_command(self, command_id: str, *, output: str) -> dict[str, Any]:
+        async with httpx.AsyncClient(timeout=30.0, verify=self._verify) as client:
+            r = await client.post(
+                f"{self._settings.api_base_url.rstrip('/')}/agent/v1/commands/{command_id}/progress",
+                headers=self._headers,
+                json={"output": output},
+            )
+            r.raise_for_status()
+            return r.json()
+
     async def complete_command(
         self,
         command_id: str,

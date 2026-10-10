@@ -9,14 +9,16 @@ from typing import Any
 from uuid import UUID
 
 import httpx
-from sqlalchemy import func, select
+from sqlalchemy import String, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
+from app.database import engine
 from app.enrichment.config import load_config
 from app.enrichment.ip_gather import gather_ips_from_event, observation_ips
 from app.enrichment.ip_utils import is_public_ip
 from app.models.event import Event
+from app.models.pot import Pot
 from app.models.threat_ip import ThreatIp
 from app.time_utils import ensure_utc, utc_now
 
@@ -309,6 +311,166 @@ async def scan_events_for_ips(
             cfg=cfg,
         )
     return len(rows), ips_found
+
+
+def _as_str_list(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(item) for item in value if item]
+
+
+def _container_for_hit(
+    ip: str,
+    observations: list,
+    payload: dict | None,
+    service_name: str | None,
+    event_type: str,
+) -> str | None:
+    for obs in observations:
+        if obs.ip == ip and obs.container:
+            return str(obs.container).lstrip("/")
+    if isinstance(payload, dict):
+        for key in ("container", "container_name"):
+            raw = payload.get(key)
+            if isinstance(raw, str) and raw.strip():
+                return raw.strip().lstrip("/")
+    if event_type == "watchpot.agent.container_logs" and service_name:
+        return service_name
+    for obs in observations:
+        if obs.ip == ip and obs.service:
+            return obs.service
+    return None
+
+
+async def ip_hit_activity(
+    session: AsyncSession,
+    ip: str,
+    *,
+    lookback_hours: int = 24 * 30,
+    limit: int = 40,
+) -> dict[str, Any]:
+    """Recent events, pots, containers, and enrichment matches for one tracked IP."""
+    needle = ip.strip()
+    since = utc_now() - timedelta(hours=lookback_hours)
+    like = f"%{needle.replace('%', '').replace('_', '')}%"
+    if engine.sync_engine.dialect.name == "mysql":
+        from sqlalchemy.dialects.mysql import CHAR as MySQLChar
+
+        payload_text = cast(Event.payload, MySQLChar)
+    else:
+        payload_text = cast(Event.payload, String)
+    stmt = (
+        select(Event, Pot.name)
+        .join(Pot, Pot.id == Event.pot_id)
+        .where(
+            Event.received_at >= since,
+            (Event.raw_log.ilike(like)) | (payload_text.ilike(like)),
+        )
+        .order_by(Event.received_at.desc())
+        .limit(400)
+    )
+    rows = (await session.execute(stmt)).all()
+
+    hits: list[dict[str, Any]] = []
+    pots: dict[str, str] = {}
+    containers: list[str] = []
+    attack_types: list[str] = []
+    tools: list[str] = []
+    cve_ids: list[str] = []
+    rule_names: list[str] = []
+
+    def remember(bucket: list[str], values: list[str]) -> None:
+        for item in values:
+            if item and item not in bucket:
+                bucket.append(item)
+
+    for ev, pot_name in rows:
+        if len(hits) >= limit:
+            break
+        payload = ev.payload if isinstance(ev.payload, dict) else None
+        observations = gather_ips_from_event(
+            raw_log=ev.raw_log,
+            payload=payload,
+            service_name=ev.service_name,
+            event_type=ev.event_type,
+        )
+        matched_obs = [obs for obs in observations if obs.ip == needle]
+        source_ips = _as_str_list(payload.get("source_ips") if payload else None)
+        if not matched_obs and needle not in source_ips:
+            continue
+
+        enr = payload.get("enrichment") if payload else None
+        matched = isinstance(enr, dict) and enr.get("status") in ("matched", "low_confidence")
+        hit_attacks = _as_str_list(enr.get("attack_types") if matched else None)
+        hit_tools = _as_str_list(enr.get("tools") if matched else None)
+        hit_cves = _as_str_list(enr.get("cve_ids") if matched else None)
+        hit_rules = _as_str_list(enr.get("rule_names") if matched else None)
+        if not hit_rules and matched:
+            hit_rules = _as_str_list(enr.get("rules_matched") if isinstance(enr, dict) else None)
+        raw_conf = enr.get("confidence") if matched and isinstance(enr, dict) else None
+        conf = float(raw_conf) if isinstance(raw_conf, (int, float)) else None
+        container = _container_for_hit(needle, matched_obs or observations, payload, ev.service_name, ev.event_type)
+        port = next((obs.port for obs in matched_obs if obs.port), None)
+        source = matched_obs[0].source if matched_obs else None
+
+        pots[str(ev.pot_id)] = pot_name or str(ev.pot_id)
+        if container:
+            remember(containers, [container])
+        remember(attack_types, hit_attacks)
+        remember(tools, hit_tools)
+        remember(cve_ids, hit_cves)
+        remember(rule_names, hit_rules)
+
+        hits.append(
+            {
+                "event_id": ev.id,
+                "pot_id": ev.pot_id,
+                "pot_name": pot_name,
+                "container": container,
+                "service_name": ev.service_name,
+                "event_type": ev.event_type,
+                "received_at": ev.received_at,
+                "port": port,
+                "source": source,
+                "attack_types": hit_attacks,
+                "tools": hit_tools,
+                "cve_ids": hit_cves,
+                "rule_names": hit_rules,
+                "confidence": conf,
+            }
+        )
+
+    tracked = (
+        await session.execute(select(ThreatIp).where(ThreatIp.ip_address == needle))
+    ).scalar_one_or_none()
+    if tracked:
+        remember(attack_types, _as_str_list(tracked.attack_types))
+        remember(tools, _as_str_list(tracked.tools))
+        remember(cve_ids, _as_str_list(tracked.cve_ids))
+    if tracked and tracked.pot_ids:
+        missing: list[UUID] = []
+        for pid in tracked.pot_ids:
+            if str(pid) in pots:
+                continue
+            try:
+                missing.append(UUID(str(pid)))
+            except ValueError:
+                continue
+        if missing:
+            named = (await session.execute(select(Pot.id, Pot.name).where(Pot.id.in_(missing)))).all()
+            for pot_id, pot_name in named:
+                pots[str(pot_id)] = pot_name
+
+    return {
+        "ip_address": needle,
+        "hits": hits,
+        "pots": [{"id": pid, "name": name} for pid, name in pots.items()],
+        "containers": containers,
+        "attack_types": attack_types,
+        "tools": tools,
+        "cve_ids": cve_ids,
+        "rule_names": rule_names,
+    }
 
 
 async def ip_intel_stats(session: AsyncSession) -> dict[str, Any]:

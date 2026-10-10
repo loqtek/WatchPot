@@ -250,7 +250,6 @@ select {
 }
 
 pre {
-  border-radius: 0.75rem;
   background-color: var(--recessed);
   color: var(--body);
   border-color: var(--line);

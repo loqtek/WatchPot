@@ -217,7 +217,7 @@ export default function EventsPage() {
                     )}
                   </button>
                   {expandedId === e.id && e.raw_log ? (
-                    <pre className="border-t border-zinc-800/80 px-3 py-3 max-h-64 overflow-auto font-mono text-xs text-zinc-400 whitespace-pre-wrap">
+                    <pre className="max-h-64 overflow-auto rounded-none border-t border-zinc-800/80 bg-transparent px-3 py-3 font-mono text-xs text-zinc-400 whitespace-pre-wrap">
                       {e.raw_log}
                     </pre>
                   ) : expandedId === e.id ? (
@@ -232,7 +232,7 @@ export default function EventsPage() {
         </Card>
       ) : null}
 
-      <Card>
+      <Card className="overflow-hidden">
         <CardContent className="p-0">
           {loading ? (
             <div className="flex items-center justify-center gap-3 py-16 text-zinc-500">
@@ -347,7 +347,7 @@ export default function EventsPage() {
         </p>
 
         {showAudit ? (
-          <Card>
+          <Card className="overflow-hidden">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-base flex items-center gap-2">
                 <ClipboardList className="h-4 w-4 text-zinc-500" />

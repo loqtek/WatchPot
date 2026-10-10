@@ -20,7 +20,7 @@ from app.services.backup_artifacts import refresh_job_storage_location
 from app.services.backup_store import server_artifact_path, write_verified_stream
 from app.models.stack import Stack, StackRevision
 from app.schemas.agent import AgentDesiredStack, AgentEventBatchIn, AgentHeartbeatIn
-from app.schemas.pot_ops import AgentCommandComplete, PotCommandOut
+from app.schemas.pot_ops import AgentCommandComplete, AgentCommandProgress, PotCommandOut
 from app.enrichment.ip_intel import schedule_ip_tracking
 from app.enrichment.worker import schedule_enrichment
 from app.services.pot_infra import merge_infra_into_meta
@@ -128,6 +128,27 @@ async def pending_commands(
         .limit(20)
     )
     return [PotCommandOut.model_validate(c) for c in result.scalars().all()]
+
+
+@router.post("/commands/{command_id}/progress", response_model=PotCommandOut)
+async def progress_command(
+    command_id: UUID,
+    body: AgentCommandProgress,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    pot: Annotated[Pot, Depends(get_agent_pot)],
+) -> PotCommandOut:
+    """Append live output while a command is still running (used by long backups)."""
+    result = await db.execute(
+        select(PotCommand).where(PotCommand.id == command_id, PotCommand.pot_id == pot.id)
+    )
+    cmd = result.scalar_one_or_none()
+    if cmd is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Command not found")
+    if cmd.status in ("completed", "failed"):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Command already finished")
+    cmd.status = "running"
+    cmd.output = (body.output or "")[:100_000] or None
+    return PotCommandOut.model_validate(cmd)
 
 
 @router.post("/commands/{command_id}/complete", response_model=PotCommandOut)

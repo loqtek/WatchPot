@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Awaitable, Callable
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from uuid import UUID
@@ -70,6 +72,8 @@ async def run_command(
     api_base_url: str | None = None,
     api_headers: dict[str, str] | None = None,
     api_verify: str | bool = True,
+    on_log: Callable[[str], Awaitable[None]] | None = None,
+    log_lines: list[str] | None = None,
 ) -> tuple[str, str | None, str | None]:
     """Returns (status, output, error)."""
     action = (item.get("action") or "").strip().lower()
@@ -116,21 +120,25 @@ async def run_command(
             return "failed", None, "container required"
         backup_name = str(params.get("backup_name") or container)
         export_tar = bool(params.get("export_tar", True))
-        ok, out = docker_backup_container(
+        ok, out = await docker_backup_container(
             str(container),
             backup_name=backup_name,
             work_root=work_dir,
             export_tar=export_tar,
+            on_log=on_log,
+            log_lines=log_lines,
         )
         return ("completed" if ok else "failed"), out, None if ok else out
 
     if action == "backup_pot":
         backup_name = str(params.get("backup_name") or "pot-backup")
         export_tar = bool(params.get("export_tar", True))
-        ok, out = docker_backup_pot(
+        ok, out = await docker_backup_pot(
             backup_name=backup_name,
             work_root=work_dir,
             export_tar=export_tar,
+            on_log=on_log,
+            log_lines=log_lines,
         )
         return ("completed" if ok else "failed"), out, None if ok else out
 
@@ -180,6 +188,19 @@ async def process_pending_commands(
         cmd_id = item.get("id")
         if not cmd_id:
             continue
+        action = (item.get("action") or "").lower()
+        log_lines: list[str] = []
+        on_log = None
+        if action in ("backup_container", "backup_pot"):
+
+            async def on_log(msg: str, _cmd_id: str = str(cmd_id), _lines: list[str] = log_lines) -> None:
+                line = f"{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}Z  {msg}"
+                _lines.append(line)
+                try:
+                    await client.progress_command(_cmd_id, output="\n".join(_lines))
+                except Exception as e:
+                    log.warning("backup progress update failed: %s", e)
+
         status, output, error = await run_command(
             item,
             work_dir=work_dir,
@@ -188,6 +209,8 @@ async def process_pending_commands(
             api_base_url=getattr(client, "_settings", None) and client._settings.api_base_url,
             api_headers=getattr(client, "_headers", None),
             api_verify=getattr(client, "_verify", True),
+            on_log=on_log,
+            log_lines=log_lines if action in ("backup_container", "backup_pot") else None,
         )
         try:
             await client.complete_command(cmd_id, status=status, output=output, error=error)

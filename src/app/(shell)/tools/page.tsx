@@ -166,8 +166,8 @@ export default function ToolsPage() {
             </div>
           )}
 
-          <div className="relative rounded-lg border border-zinc-800 bg-zinc-950/80 p-4 font-mono text-xs leading-relaxed text-zinc-300">
-            <pre className="overflow-x-auto whitespace-pre-wrap">{envBlock}</pre>
+          <div className="relative overflow-hidden rounded-xl border border-line bg-recessed font-mono text-xs leading-relaxed text-body">
+            <pre className="overflow-x-auto whitespace-pre-wrap rounded-none bg-transparent p-4 pr-24">{envBlock}</pre>
             <Button
               type="button"
               variant="secondary"

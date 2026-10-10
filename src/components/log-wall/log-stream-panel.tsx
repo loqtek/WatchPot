@@ -137,11 +137,11 @@ export function LogStreamPanel({
           ) : null}
         </div>
       </div>
-      <div className="relative min-h-0 flex-1 p-1">
+      <div className="relative min-h-0 flex-1">
         <pre
           ref={preRef}
           onScroll={handleScroll}
-          className="h-full overflow-auto rounded-xl border border-line bg-recessed p-3 font-mono text-[11px] leading-relaxed text-body whitespace-pre-wrap"
+          className="h-full overflow-auto rounded-none border-0 bg-recessed p-3 font-mono text-[11px] leading-relaxed text-body whitespace-pre-wrap"
         >
           {!configured
             ? "Configure this window to start streaming logs."

@@ -109,6 +109,34 @@ export type ThreatIp = {
   last_seen_at: string;
 };
 
+export type IpHit = {
+  event_id: string;
+  pot_id: string;
+  pot_name: string | null;
+  container: string | null;
+  service_name: string | null;
+  event_type: string;
+  received_at: string;
+  port: number | null;
+  source: string | null;
+  attack_types: string[];
+  tools: string[];
+  cve_ids: string[];
+  rule_names: string[];
+  confidence: number | null;
+};
+
+export type IpActivity = {
+  ip_address: string;
+  hits: IpHit[];
+  pots: { id: string; name: string }[];
+  containers: string[];
+  attack_types: string[];
+  tools: string[];
+  cve_ids: string[];
+  rule_names: string[];
+};
+
 export type IpIntelStats = {
   total: number;
   suspicious: number;

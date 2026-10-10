@@ -202,7 +202,7 @@ export function PotContainerLogs({ potId, potName, autoLoad = true }: PotContain
               ) : null}
             </div>
 
-            <pre className="max-h-[min(28rem,50vh)] overflow-auto rounded-lg border border-zinc-800 bg-zinc-950 p-4 font-mono text-xs text-zinc-300 whitespace-pre-wrap">
+            <pre className="max-h-[min(28rem,50vh)] overflow-auto rounded-xl border border-line bg-recessed p-4 font-mono text-xs text-body whitespace-pre-wrap">
               {busy && !logsText
                 ? "Loading cached logs…"
                 : liveBusy && !logsText

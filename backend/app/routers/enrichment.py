@@ -14,7 +14,7 @@ from app.deps import get_current_user
 from app.enrichment.bootstrap import ensure_builtin_rules, ensure_default_schedules
 from app.enrichment.config import load_config, save_config
 from app.enrichment.cve import cve_stats, ensure_catalog_cves, seed_cve_cache, sync_cve_cache
-from app.enrichment.ip_intel import ip_intel_stats, lookup_ip_geo, scan_events_for_ips
+from app.enrichment.ip_intel import ip_hit_activity, ip_intel_stats, lookup_ip_geo, scan_events_for_ips
 from app.enrichment.engine import test_sample
 from app.enrichment.scheduler import run_schedule, schedule_next_run
 from app.enrichment.worker import batch_reenrich
@@ -38,6 +38,7 @@ from app.schemas.enrichment import (
     EnrichmentScheduleOut,
     EnrichmentScheduleUpdate,
     EnrichmentStatsOut,
+    IpActivityOut,
     IpIntelStatsOut,
     IpScanRequest,
     ReprocessRequest,
@@ -620,6 +621,15 @@ async def list_ips(
         stmt = stmt.where(ThreatIp.status == status.strip().lower())
     result = await db.execute(stmt)
     return [ThreatIpOut.model_validate(r) for r in result.scalars().all()]
+
+
+@router.get("/ips/{ip_address}/activity", response_model=IpActivityOut)
+async def ip_activity(
+    ip_address: str,
+    _: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> IpActivityOut:
+    return IpActivityOut.model_validate(await ip_hit_activity(db, ip_address.strip()))
 
 
 @router.get("/ips/{ip_address}", response_model=ThreatIpOut)

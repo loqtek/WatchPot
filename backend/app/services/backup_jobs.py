@@ -188,7 +188,7 @@ async def sync_backup_job_from_command(db: AsyncSession, job: BackupJob) -> Back
         job.completed_at = datetime.now(timezone.utc)
         return job
 
-    if cmd.status == "pending":
+    if cmd.status in ("pending", "running"):
         job.status = "running"
         return job
 

@@ -1,14 +1,20 @@
 import { type HTMLAttributes, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-export function TableWrap({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
+export function TableWrap({ className, children, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn("overflow-x-auto rounded-2xl border border-line bg-surface", className)} {...props} />
+    <div className={cn("overflow-hidden rounded-2xl border border-line bg-surface", className)}>
+      <div className="overflow-x-auto" {...props}>
+        {children}
+      </div>
+    </div>
   );
 }
 
 export function Table({ className, ...props }: HTMLAttributes<HTMLTableElement>) {
-  return <table className={cn("w-full caption-bottom text-sm", className)} {...props} />;
+  return (
+    <table className={cn("w-full caption-bottom text-sm", className)} {...props} />
+  );
 }
 
 export function THead({ className, ...props }: HTMLAttributes<HTMLTableSectionElement>) {

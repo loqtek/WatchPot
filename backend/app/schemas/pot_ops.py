@@ -75,5 +75,9 @@ class AgentCommandComplete(BaseModel):
     error: str | None = None
 
 
+class AgentCommandProgress(BaseModel):
+    output: str = Field(default="", max_length=100_000)
+
+
 class PotDeleteOut(BaseModel):
     teardown_command_ids: list[UUID] = Field(default_factory=list)

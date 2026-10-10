@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import {
   Box,
@@ -56,6 +56,27 @@ type PotContainersPanelProps = {
 
 type StatusFilter = "all" | ContainerRuntimeStatus;
 type ViewMode = "stacks" | "table";
+
+const VIEW_MODE_KEY = "watchpot.containers.viewMode";
+const VIEW_MODE_EVENT = "watchpot-containers-view";
+
+function subscribeViewMode(onChange: () => void) {
+  window.addEventListener("storage", onChange);
+  window.addEventListener(VIEW_MODE_EVENT, onChange);
+  return () => {
+    window.removeEventListener("storage", onChange);
+    window.removeEventListener(VIEW_MODE_EVENT, onChange);
+  };
+}
+
+function readViewMode(): ViewMode {
+  return localStorage.getItem(VIEW_MODE_KEY) === "table" ? "table" : "stacks";
+}
+
+function writeViewMode(mode: ViewMode) {
+  localStorage.setItem(VIEW_MODE_KEY, mode);
+  window.dispatchEvent(new Event(VIEW_MODE_EVENT));
+}
 
 function stackTone(s: StackWorkloadStatus): "success" | "warning" | "danger" | "info" | "default" {
   switch (s) {
@@ -138,7 +159,7 @@ export function PotContainersPanel({
 
   const [busy, setBusy] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [viewMode, setViewMode] = useState<ViewMode>("stacks");
+  const viewMode = useSyncExternalStore(subscribeViewMode, readViewMode, (): ViewMode => "stacks");
   const [collapsedStacks, setCollapsedStacks] = useState<Record<string, boolean>>({});
 
   const [selected, setSelected] = useState<PotContainer | null>(null);
@@ -288,9 +309,10 @@ export function PotContainersPanel({
             size="sm"
             disabled={!!busy}
             onClick={() => void doAction(`start-${c.id}`, { action: "start", container: c.name || c.id })}
-            title="Start"
+            title={busy === `start-${c.id}` ? "Starting" : "Start"}
+            aria-busy={busy === `start-${c.id}`}
           >
-            <Play className="h-3.5 w-3.5" />
+            {busy === `start-${c.id}` ? <Spinner size="sm" /> : <Play className="h-3.5 w-3.5" />}
           </Button>
         ) : (
           <Button
@@ -407,10 +429,10 @@ export function PotContainersPanel({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="seg seg-sm" role="group" aria-label="Container view">
-            <button type="button" aria-pressed={viewMode === "stacks"} onClick={() => setViewMode("stacks")}>
+            <button type="button" aria-pressed={viewMode === "stacks"} onClick={() => writeViewMode("stacks")}>
               By stack
             </button>
-            <button type="button" aria-pressed={viewMode === "table"} onClick={() => setViewMode("table")}>
+            <button type="button" aria-pressed={viewMode === "table"} onClick={() => writeViewMode("table")}>
               All containers
             </button>
           </div>
@@ -527,10 +549,16 @@ export function PotContainersPanel({
                           type="button"
                           variant="outline"
                           size="sm"
-                          disabled={!!busy || !g.stack.latest_revision}
+                          disabled={!!busy || !g.stack.latest_revision || st === "up"}
+                          title={st === "up" ? "Stack is already running" : "Start this stack"}
+                          aria-busy={busy === `up-${g.stack.id}`}
                           onClick={() => void doAction(`up-${g.stack.id}`, { action: "compose_start", stack_id: g.stack.id })}
                         >
-                          <Play className="mr-1 h-3.5 w-3.5" />
+                          {busy === `up-${g.stack.id}` ? (
+                            <Spinner size="sm" className="mr-1" />
+                          ) : (
+                            <Play className="mr-1 h-3.5 w-3.5" />
+                          )}
                           Up
                         </Button>
                         <Button

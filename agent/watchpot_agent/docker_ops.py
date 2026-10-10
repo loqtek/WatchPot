@@ -1,8 +1,10 @@
+import asyncio
 import hashlib
 import json
 import os
 import re
 import subprocess
+from collections.abc import Awaitable, Callable
 from datetime import datetime, timezone
 from pathlib import Path
 from uuid import UUID
@@ -210,12 +212,24 @@ def _image_id_from_inspect(image_ref: str) -> str | None:
         return None
 
 
-def docker_backup_container(
+async def _run_docker(args: list[str], *, timeout: int) -> subprocess.CompletedProcess[str]:
+    return await asyncio.to_thread(
+        subprocess.run,
+        args,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+    )
+
+
+async def docker_backup_container(
     container: str,
     *,
     backup_name: str,
     work_root: Path,
     export_tar: bool = True,
+    on_log: Callable[[str], Awaitable[None]] | None = None,
+    log_lines: list[str] | None = None,
 ) -> tuple[bool, str]:
     """Commit a container to an image and optionally export a portable tar."""
     root = resolve_work_root(work_root)
@@ -226,18 +240,20 @@ def docker_backup_container(
     slug = _safe_slug(backup_name or container)
     image_ref = f"watchpot/backup-{slug}:{stamp}"
 
+    async def note(msg: str) -> None:
+        if on_log is not None:
+            await on_log(msg)
+
     try:
-        commit = subprocess.run(
-            ["docker", "commit", container, image_ref],
-            capture_output=True,
-            text=True,
-            timeout=600,
-        )
+        await note(f"Committing container {container} to {image_ref}")
+        commit = await _run_docker(["docker", "commit", container, image_ref], timeout=600)
         if commit.returncode != 0:
             err = (commit.stderr or commit.stdout or f"exit {commit.returncode}")[:4000]
+            await note(f"docker commit failed: {err[:300]}")
             return False, err
 
-        image_id = _image_id_from_inspect(image_ref)
+        image_id = await asyncio.to_thread(_image_id_from_inspect, image_ref)
+        await note(f"Commit finished ({image_id or 'image id unavailable'})")
         artifact_path: str | None = None
         artifact_size: int | None = None
         artifact_sha256: str | None = None
@@ -246,23 +262,24 @@ def docker_backup_container(
         if export_tar:
             tar_name = f"{slug}-{stamp}.tar"
             tar_path = backups_dir / tar_name
-            save = subprocess.run(
-                ["docker", "save", "-o", str(tar_path), image_ref],
-                capture_output=True,
-                text=True,
-                timeout=1800,
-            )
+            await note(f"Exporting {image_ref} to {tar_name} — docker save can take a while on large images")
+            save = await _run_docker(["docker", "save", "-o", str(tar_path), image_ref], timeout=1800)
             if save.returncode != 0:
                 err = (save.stderr or save.stdout or f"exit {save.returncode}")[:4000]
+                await note(f"docker save failed: {err[:300]}")
                 return False, err
             artifact_path = str(tar_path.resolve())
             artifact_format = "tar"
+            await note("Hashing the archive")
             try:
                 artifact_size = tar_path.stat().st_size
-                artifact_sha256 = _sha256_file(tar_path)
-            except OSError:
+                artifact_sha256 = await asyncio.to_thread(_sha256_file, tar_path)
+                await note(f"Archive ready ({artifact_size} bytes)")
+            except OSError as e:
                 artifact_size = None
+                await note(f"Could not hash archive: {e}")
 
+        await note(f"Container backup finished for {container}")
         payload = {
             "backup_type": "container",
             "container": container,
@@ -274,6 +291,7 @@ def docker_backup_container(
             "artifact_sha256": artifact_sha256,
             "storage_location": "agent",
             "work_dir": str(root),
+            "log": list(log_lines or []),
         }
         if artifact_path and artifact_sha256:
             payload["manifest_path"] = _write_manifest(
@@ -283,44 +301,62 @@ def docker_backup_container(
             )
         return True, json.dumps(payload)
     except (OSError, subprocess.TimeoutExpired) as e:
+        await note(f"Backup error: {e}")
         return False, str(e)
 
 
-def docker_backup_pot(
+async def docker_backup_pot(
     *,
     backup_name: str,
     work_root: Path,
     export_tar: bool = True,
+    on_log: Callable[[str], Awaitable[None]] | None = None,
+    log_lines: list[str] | None = None,
 ) -> tuple[bool, str]:
     """Backup all containers on this Docker host."""
-    ok, data = docker_ps_snapshot()
+
+    async def note(msg: str) -> None:
+        if on_log is not None:
+            await on_log(msg)
+
+    await note("Listing containers on this pot")
+    ok, data = await asyncio.to_thread(docker_ps_snapshot)
     if not ok:
+        await note("Could not list containers")
         return False, str(data)[:4000]
     if not isinstance(data, list) or not data:
+        await note("No containers found")
         return False, "No containers found on this pot"
 
     entries: list[dict[str, str | int | None]] = []
     total_size = 0
     errors: list[str] = []
+    names = [
+        str(row.get("Names") or row.get("Name") or "").lstrip("/")
+        for row in data
+        if str(row.get("Names") or row.get("Name") or "").lstrip("/")
+    ]
+    await note(f"Backing up {len(names)} container(s)")
 
-    for row in data:
-        name = str(row.get("Names") or row.get("Name") or "").lstrip("/")
-        if not name:
-            continue
+    for name in names:
         child_name = f"{backup_name}-{name}"
-        ok_one, out = docker_backup_container(
+        await note(f"Starting {name}")
+        ok_one, out = await docker_backup_container(
             name,
             backup_name=child_name,
             work_root=work_root,
             export_tar=export_tar,
+            on_log=on_log,
         )
         if not ok_one:
             errors.append(f"{name}: {out[:200]}")
+            await note(f"{name} failed")
             continue
         try:
             entry = json.loads(out)
         except json.JSONDecodeError:
             errors.append(f"{name}: invalid backup metadata")
+            await note(f"{name} returned invalid metadata")
             continue
         if isinstance(entry, dict):
             entries.append(entry)
@@ -329,10 +365,12 @@ def docker_backup_pot(
                 total_size += size
 
     if not entries:
+        await note("All container backups failed")
         return False, "; ".join(errors)[:4000] or "All container backups failed"
 
     root = resolve_work_root(work_root)
     backups_dir = root / "backups"
+    await note(f"Pot backup finished — {len(entries)} succeeded, {len(errors)} failed")
     payload = {
         "backup_type": "pot",
         "containers": entries,
@@ -340,6 +378,7 @@ def docker_backup_pot(
         "failed": errors,
         "storage_location": "agent",
         "work_dir": str(root),
+        "log": list(log_lines or []),
     }
     if entries:
         payload["manifest_path"] = _write_manifest(

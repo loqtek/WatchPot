@@ -21,6 +21,8 @@ export function useAsyncData<T>(
   refreshing: boolean;
   error: string | null;
   refetch: () => Promise<void>;
+  /** Reload without clearing the current view. */
+  refresh: () => Promise<void>;
 } {
   const [data, setData] = useState<T | undefined>();
   const [loading, setLoading] = useState(true);
@@ -81,5 +83,8 @@ export function useAsyncData<T>(
     return () => clearInterval(id);
   }, [interval, run]);
 
-  return { data, loading, error, refreshing, refetch: () => run(false) };
+  const refetch = useCallback(() => run(false), [run]);
+  const refresh = useCallback(() => run(true), [run]);
+
+  return { data, loading, error, refreshing, refetch, refresh };
 }
