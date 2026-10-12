@@ -1,4 +1,4 @@
-from app.enrichment.command_extract import extract_commands
+from app.enrichment.command_extract import extract_commands, is_control_plane_container
 
 
 def test_cowrie_json_command_redacts_password_and_keeps_input():
@@ -42,6 +42,47 @@ def test_hellpot_json_and_key_value_requests():
     assert found[0].src_ip == "203.0.113.50"
     assert found[1].command == "POST /xmlrpc.php"
     assert found[1].src_ip == "203.0.113.51"
+
+
+def test_platform_and_telemetry_requests_are_dropped():
+    raw = """
+2026-04-01T12:00:08Z POST /api/agent/v1/events
+2026-04-01T12:00:09Z POST /bot/statistic?id=1
+2026-04-01T12:00:10Z GET /wp-login.php
+2026-04-01T12:00:11Z CMD: curl http://example.test/api/agent/v1/events
+""".strip()
+    found = extract_commands(raw)
+    assert [item.command for item in found] == [
+        "GET /wp-login.php",
+        "curl http://example.test/api/agent/v1/events",
+    ]
+
+
+def test_long_shell_command_is_kept_with_surrounding_lines():
+    payload = "echo " + ("A" * 2000)
+    raw = "\n".join(
+        [
+            "2026-04-01T12:00:01Z session opened",
+            f"2026-04-01T12:00:02Z CMD: {payload}",
+            "2026-04-01T12:00:03Z session closed",
+        ]
+    )
+    found = extract_commands(raw)
+    assert len(found) == 1
+    assert found[0].command == payload
+    assert len(found[0].command) > 1024
+    assert "session opened" in found[0].excerpt
+    assert payload in found[0].excerpt
+    assert "session closed" in found[0].excerpt
+
+
+def test_control_plane_container_names():
+    assert is_control_plane_container("watchpot-api-1")
+    assert is_control_plane_container("watchpot-proxy")
+    assert is_control_plane_container("watchpot-postgres")
+    assert not is_control_plane_container("hellpot")
+    assert not is_control_plane_container("cowrie")
+    assert not is_control_plane_container("web-honeypot")
 
 
 def test_reingested_tail_has_stable_fingerprint():

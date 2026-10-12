@@ -14,7 +14,8 @@ from app.deps import get_current_user
 from app.enrichment.bootstrap import ensure_builtin_rules, ensure_default_schedules
 from app.enrichment.config import load_config, save_config
 from app.enrichment.cve import cve_stats, ensure_catalog_cves, seed_cve_cache, sync_cve_cache
-from app.enrichment.command_capture import command_stats, scan_events_for_commands
+from app.enrichment.command_capture import command_stats, purge_noise_commands, scan_events_for_commands
+from app.enrichment.command_extract import excerpt_around
 from app.enrichment.ip_intel import ip_hit_activity, ip_intel_stats, lookup_ip_geo, scan_events_for_ips
 from app.enrichment.engine import test_sample
 from app.enrichment.scheduler import run_schedule, schedule_next_run
@@ -22,6 +23,7 @@ from app.enrichment.worker import batch_reenrich
 from app.models.cve_entry import CveEntry
 from app.models.enrichment_rule import EnrichmentRule
 from app.models.enrichment_schedule import EnrichmentSchedule
+from app.models.event import Event
 from app.models.pot import Pot
 from app.models.threat_command import ThreatCommand
 from app.models.threat_ip import ThreatIp
@@ -43,6 +45,7 @@ from app.schemas.enrichment import (
     EnrichmentStatsOut,
     IpActivityOut,
     IpIntelStatsOut,
+    ThreatCommandDetailOut,
     ThreatCommandOut,
     ThreatCommandStatsOut,
     IpScanRequest,
@@ -744,6 +747,7 @@ async def get_command_stats(
     _: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ThreatCommandStatsOut:
+    await purge_noise_commands(db)
     return ThreatCommandStatsOut.model_validate(await command_stats(db))
 
 
@@ -755,6 +759,7 @@ async def list_commands(
     kind: str | None = Query(default=None),
     limit: int = Query(default=150, ge=1, le=500),
 ) -> list[ThreatCommandOut]:
+    await purge_noise_commands(db)
     stmt = select(ThreatCommand).order_by(ThreatCommand.observed_at.desc()).limit(limit)
     if kind:
         stmt = stmt.where(ThreatCommand.kind == kind.strip().lower())
@@ -776,6 +781,26 @@ async def list_commands(
         ThreatCommandOut.model_validate(row).model_copy(update={"pot_name": names.get(row.pot_id)})
         for row in rows
     ]
+
+
+@router.get("/commands/{command_id}", response_model=ThreatCommandDetailOut)
+async def get_command(
+    command_id: UUID,
+    _: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> ThreatCommandDetailOut:
+    row = await db.get(ThreatCommand, command_id)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Command not found")
+    context = row.context
+    if not context and row.event_id:
+        event = await db.get(Event, row.event_id)
+        if event is not None and event.raw_log:
+            context = excerpt_around(event.raw_log, row.command)
+    pot_name = (await db.execute(select(Pot.name).where(Pot.id == row.pot_id))).scalar_one_or_none()
+    return ThreatCommandDetailOut.model_validate(row).model_copy(
+        update={"pot_name": pot_name, "context": context}
+    )
 
 
 @router.post("/commands/scan")

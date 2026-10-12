@@ -8,10 +8,10 @@ import logging
 from datetime import timedelta
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.enrichment.command_extract import extract_commands
+from app.enrichment.command_extract import extract_commands, is_control_plane_container
 from app.models.event import Event
 from app.models.threat_command import ThreatCommand
 from app.time_utils import utc_now
@@ -30,9 +30,71 @@ def _container_name(ev: Event) -> str | None:
     return None
 
 
+_HTTP_METHODS = ("GET", "POST", "PUT", "DELETE", "HEAD", "OPTIONS", "PATCH")
+_NOISE_EXACT_PATHS = ("/bot/statistic",)
+_CONTROL_PLANE_CONTAINERS = (
+    "watchpot-api%",
+    "watchpot-web%",
+    "watchpot-proxy%",
+    "watchpot-postgres%",
+    "watchpot-agent%",
+    "watchpot-grafana%",
+    "watchpot-setup-wizard%",
+)
+
+
+def _noise_delete_filter():
+    clauses = []
+    for method in _HTTP_METHODS:
+        clauses.append(ThreatCommand.command.ilike(f"{method} /api/agent%"))
+        clauses.append(ThreatCommand.command.ilike(f"{method} /bot/statistic%"))
+        for path in _NOISE_EXACT_PATHS:
+            clauses.append(ThreatCommand.command == f"{method} {path}")
+            clauses.append(ThreatCommand.command.ilike(f"{method} {path}?%"))
+    for pattern in _CONTROL_PLANE_CONTAINERS:
+        clauses.append(ThreatCommand.container.ilike(pattern))
+    return or_(*clauses)
+
+
+async def purge_noise_commands(session: AsyncSession) -> int:
+    """Drop platform traffic and telemetry that should never have been stored."""
+    result = await session.execute(delete(ThreatCommand).where(_noise_delete_filter()))
+    return int(result.rowcount or 0)
+
+
+async def _expand_clipped(
+    session: AsyncSession,
+    *,
+    pot_id: UUID,
+    container: str | None,
+    kind: str,
+    src_ip: str | None,
+    command: str,
+) -> ThreatCommand | None:
+    """Replace a row saved under the old 1024-character cutoff with the full command."""
+    if len(command) <= 1024:
+        return None
+    stmt = select(ThreatCommand).where(
+        ThreatCommand.pot_id == pot_id,
+        ThreatCommand.kind == kind,
+        ThreatCommand.command == command[:1024],
+    )
+    if container:
+        stmt = stmt.where(ThreatCommand.container == container)
+    else:
+        stmt = stmt.where(ThreatCommand.container.is_(None))
+    if src_ip:
+        stmt = stmt.where(ThreatCommand.src_ip == src_ip)
+    rows = list((await session.execute(stmt)).scalars().all())
+    if len(rows) != 1:
+        return None
+    return rows[0]
+
+
 async def record_commands_for_events(session: AsyncSession, event_ids: list[UUID]) -> int:
     if not event_ids:
         return 0
+    await purge_noise_commands(session)
     result = await session.execute(select(Event).where(Event.id.in_(event_ids)))
     events = list(result.scalars().all())
     stored = 0
@@ -44,6 +106,8 @@ async def record_commands_for_events(session: AsyncSession, event_ids: list[UUID
         if ev.event_type != "watchpot.agent.container_logs" and ev.channel != "runtime":
             continue
         container = _container_name(ev)
+        if is_control_plane_container(container):
+            continue
         for item in extract_commands(ev.raw_log):
             fingerprint = hashlib.sha256(
                 f"{ev.pot_id}|{container or ''}|{item.fingerprint}".encode()
@@ -58,6 +122,24 @@ async def record_commands_for_events(session: AsyncSession, event_ids: list[UUID
                 await session.execute(select(ThreatCommand).where(ThreatCommand.fingerprint == fingerprint))
             ).scalar_one_or_none()
             if existing is None:
+                clipped = await _expand_clipped(
+                    session,
+                    pot_id=ev.pot_id,
+                    container=container,
+                    kind=item.kind,
+                    src_ip=item.src_ip,
+                    command=item.command,
+                )
+                if clipped is not None:
+                    clipped.fingerprint = fingerprint
+                    clipped.command = item.command
+                    clipped.event_id = ev.id
+                    if item.excerpt:
+                        clipped.context = item.excerpt
+                    clipped.hit_count += 1
+                    clipped.last_seen_at = now
+                    pending[fingerprint] = clipped
+                    continue
                 row = ThreatCommand(
                     fingerprint=fingerprint,
                     pot_id=ev.pot_id,
@@ -72,6 +154,7 @@ async def record_commands_for_events(session: AsyncSession, event_ids: list[UUID
                     observed_at=observed,
                     first_seen_at=now,
                     last_seen_at=now,
+                    context=item.excerpt or None,
                 )
                 session.add(row)
                 pending[fingerprint] = row
@@ -83,6 +166,9 @@ async def record_commands_for_events(session: AsyncSession, event_ids: list[UUID
                     existing.container = container
                 if item.src_ip and not existing.src_ip:
                     existing.src_ip = item.src_ip
+                if item.excerpt and not existing.context:
+                    existing.context = item.excerpt
+                    existing.event_id = ev.id
                 pending[fingerprint] = existing
     if pending:
         await session.flush()

@@ -21,6 +21,7 @@ class ThreatCommand(Base):
     container: Mapped[str | None] = mapped_column(String(255), nullable=True)
     kind: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
     command: Mapped[str] = mapped_column(Text, nullable=False)
+    context: Mapped[str | None] = mapped_column(Text, nullable=True)
     src_ip: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     session_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
     username: Mapped[str | None] = mapped_column(String(255), nullable=True)

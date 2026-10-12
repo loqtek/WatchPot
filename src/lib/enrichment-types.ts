@@ -153,6 +153,11 @@ export type ThreatCommandRow = {
   last_seen_at: string;
 };
 
+export type ThreatCommandDetail = ThreatCommandRow & {
+  event_id: string | null;
+  context: string | null;
+};
+
 export type ThreatCommandStats = {
   total: number;
   shell: number;

@@ -271,6 +271,11 @@ class ThreatCommandOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class ThreatCommandDetailOut(ThreatCommandOut):
+    event_id: UUID | None = None
+    context: str | None = None
+
+
 class ThreatCommandStatsOut(BaseModel):
     total: int
     shell: int

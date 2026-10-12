@@ -133,6 +133,10 @@ def _apply_runtime_migrations(sync_conn) -> None:
         ):
             if col not in cols:
                 sync_conn.execute(text(ddl))
+    if insp.has_table("threat_commands"):
+        cols = {c["name"] for c in insp.get_columns("threat_commands")}
+        if "context" not in cols:
+            sync_conn.execute(text("ALTER TABLE threat_commands ADD COLUMN context TEXT"))
     if insp.has_table("cve_entries"):
         cols = {c["name"] for c in insp.get_columns("cve_entries")}
         for col, ddl in (

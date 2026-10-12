@@ -10,7 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 
 _DOCKER_TS = re.compile(
@@ -31,7 +31,17 @@ _COWRIE_PEER = re.compile(r"\[HoneyPotSSHTransport,[^\]]*?,\s*(\d+\.\d+\.\d+\.\d
 _PASSWORD_FIELD = re.compile(r'(?i)("(?:password|passwd|pwd)"\s*:\s*")[^"]*(")')
 _PASSWORD_ASSIGN = re.compile(r"(?i)\b(password|passwd|pwd|pass|secret|token)(\s*[:=]\s*)(\S+)")
 
-_MAX_COMMAND = 1024
+# Long enough for a full shell one-liner. Agent log events are already capped.
+_MAX_COMMAND = 16000
+_EXCERPT_RADIUS = 8
+_EXCERPT_MAX = 16000
+
+# Control-plane containers. Their access logs are not honeypot activity.
+_CONTROL_PLANE = {"api", "web", "proxy", "postgres", "agent", "grafana", "setup-wizard"}
+
+# HTTP paths that are platform traffic or telemetry, not an attack.
+_NOISE_HTTP_EXACT = {"/bot/statistic"}
+_NOISE_HTTP_PREFIXES = ("/api/agent",)
 
 
 @dataclass(frozen=True)
@@ -43,6 +53,7 @@ class ExtractedCommand:
     username: str | None
     observed_at: datetime | None
     fingerprint: str
+    excerpt: str = ""
 
 
 def _parse_time(value: str | None) -> datetime | None:
@@ -75,6 +86,61 @@ def _clip(text: str) -> str:
     if len(cleaned) > _MAX_COMMAND:
         return cleaned[:_MAX_COMMAND]
     return cleaned
+
+
+def is_control_plane_container(name: str | None) -> bool:
+    """True for watchPot's own api, web, proxy, database, and agent containers."""
+    if not name:
+        return False
+    base = name.strip().lstrip("/").lower()
+    base = re.sub(r"[-_]?\d+$", "", base)
+    if base.startswith("watchpot-"):
+        base = base[len("watchpot-") :]
+        base = re.sub(r"[-_]?\d+$", "", base)
+    return base in _CONTROL_PLANE
+
+
+def _request_path(command: str) -> str | None:
+    parts = command.split(None, 1)
+    if len(parts) != 2 or parts[0] not in _HTTP_METHODS:
+        return None
+    path = parts[1].split("?", 1)[0]
+    if not path.startswith("/"):
+        return None
+    if len(path) > 1:
+        path = path.rstrip("/")
+    return path.lower()
+
+
+def is_noise_http(command: str) -> bool:
+    """Platform ingest and telemetry requests are not attacker commands."""
+    path = _request_path(command)
+    if path is None:
+        return False
+    if path in _NOISE_HTTP_EXACT:
+        return True
+    return any(path == prefix or path.startswith(prefix + "/") for prefix in _NOISE_HTTP_PREFIXES)
+
+
+def surrounding_lines(lines: list[str], index: int, radius: int = _EXCERPT_RADIUS) -> str:
+    start = max(0, index - radius)
+    end = min(len(lines), index + radius + 1)
+    body = "\n".join(_redact(lines[i].rstrip()) for i in range(start, end))
+    if len(body) > _EXCERPT_MAX:
+        return body[:_EXCERPT_MAX]
+    return body
+
+
+def excerpt_around(raw_log: str, command: str, radius: int = _EXCERPT_RADIUS) -> str | None:
+    """Find the stored command in a log blob and return the lines around it."""
+    needle = " ".join(command.split())[:180]
+    if not needle:
+        return None
+    lines = raw_log.splitlines()
+    for index, line in enumerate(lines):
+        if needle in " ".join(line.split()):
+            return surrounding_lines(lines, index, radius)
+    return None
 
 
 def _fingerprint(*parts: str) -> str:
@@ -236,7 +302,8 @@ def extract_commands(raw_log: str | None) -> list[ExtractedCommand]:
         return []
     found: list[ExtractedCommand] = []
     seen: set[str] = set()
-    for raw_line in raw_log.splitlines():
+    raw_lines = raw_log.splitlines()
+    for index, raw_line in enumerate(raw_lines):
         line = raw_line.strip()
         if not line:
             continue
@@ -259,6 +326,9 @@ def extract_commands(raw_log: str | None) -> list[ExtractedCommand]:
             parsed = _from_text(message, observed_at=observed_at)
         if parsed is None or parsed.fingerprint in seen:
             continue
+        if parsed.kind == "http" and is_noise_http(parsed.command):
+            continue
+        parsed = replace(parsed, excerpt=surrounding_lines(raw_lines, index))
         seen.add(parsed.fingerprint)
         found.append(parsed)
         if len(found) >= 80:
