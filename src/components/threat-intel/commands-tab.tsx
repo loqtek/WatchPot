@@ -38,7 +38,8 @@ export function CommandsTab() {
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState("");
   const [applied, setApplied] = useState({ q: "", kind: "" });
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<"scan" | "dedupe" | "delete" | null>(null);
+  const [picked, setPicked] = useState<string[]>([]);
   const [openId, setOpenId] = useState<string | null>(null);
   const [detailNonce, setDetailNonce] = useState(0);
   const [detailState, setDetailState] = useState<{ id: string; nonce: number; row: ThreatCommandDetail | null } | null>(
@@ -79,8 +80,20 @@ export function CommandsTab() {
     };
   }, [openId, detailNonce]);
 
+  function togglePicked(id: string) {
+    setPicked((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
+  }
+
+  function toggleVisible() {
+    const visible = list.map((row) => row.id);
+    const allSelected = visible.length > 0 && visible.every((id) => picked.includes(id));
+    setPicked((current) =>
+      allSelected ? current.filter((id) => !visible.includes(id)) : [...new Set([...current, ...visible])],
+    );
+  }
+
   async function scan() {
-    setBusy(true);
+    setBusy("scan");
     try {
       const res = await apiFetch<{ events_scanned: number; total_tracked: number }>("/enrichment/commands/scan", {
         method: "POST",
@@ -93,7 +106,49 @@ export function CommandsTab() {
     } catch (e) {
       notify.apiError(e);
     } finally {
-      setBusy(false);
+      setBusy(null);
+    }
+  }
+
+  async function dedupe() {
+    setBusy("dedupe");
+    try {
+      const res = await apiFetch<{ removed: number; remaining: number }>("/enrichment/commands/dedupe", {
+        method: "POST",
+      });
+      notify.success(
+        res.removed > 0 ? `Merged ${res.removed} duplicate commands` : "No duplicates to merge",
+      );
+      setOpenId(null);
+      setPicked([]);
+      refetch();
+      refetchStats();
+    } catch (e) {
+      notify.apiError(e);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function removeIds(ids: string[]) {
+    if (ids.length === 0) return;
+    const label = ids.length === 1 ? "this command" : `${ids.length} commands`;
+    if (!confirm(`Remove ${label}? This cannot be undone.`)) return;
+    setBusy("delete");
+    try {
+      const res = await apiFetch<{ removed: number }>("/enrichment/commands/remove", {
+        method: "POST",
+        json: { ids },
+      });
+      notify.success(`Removed ${res.removed} ${res.removed === 1 ? "command" : "commands"}`);
+      if (openId && ids.includes(openId)) setOpenId(null);
+      setPicked((current) => current.filter((id) => !ids.includes(id)));
+      refetch();
+      refetchStats();
+    } catch (e) {
+      notify.apiError(e);
+    } finally {
+      setBusy(null);
     }
   }
 
@@ -110,18 +165,24 @@ export function CommandsTab() {
       ) : null}
 
       <Card className="overflow-hidden">
-        <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <CardHeader className="flex flex-col gap-4 lg:items-start lg:justify-between">
           <div>
             <CardTitle className="text-base">Captured commands</CardTitle>
             <CardDescription>
-              Shell input, logins, downloads, and web honeypot requests. Select a row for the full command and the log
-              lines around it. Platform traffic such as the agent ingest path is left out. Passwords are not stored.
+              Shell input, logins, downloads, and web honeypot requests. The same command from the same source is one
+              row. Select a row for the full command and the log lines around it. Passwords are not stored.
             </CardDescription>
           </div>
-          <Button type="button" size="sm" disabled={busy} onClick={() => void scan()}>
-            {busy ? <Spinner className="mr-1.5 h-3.5 w-3.5" /> : <Terminal className="mr-1.5 h-3.5 w-3.5" />}
-            Scan recent logs
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="outline" size="sm" disabled={busy !== null} onClick={() => void dedupe()}>
+              {busy === "dedupe" ? <Spinner className="mr-1.5 h-3.5 w-3.5" /> : null}
+              Clean duplicates
+            </Button>
+            <Button type="button" size="sm" disabled={busy !== null} onClick={() => void scan()}>
+              {busy === "scan" ? <Spinner className="mr-1.5 h-3.5 w-3.5" /> : <Terminal className="mr-1.5 h-3.5 w-3.5" />}
+              Scan recent logs
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <form
@@ -158,7 +219,9 @@ export function CommandsTab() {
               row={selected}
               detail={detail}
               loading={detailLoading}
+              removing={busy === "delete"}
               onClose={() => setOpenId(null)}
+              onRemove={() => void removeIds([selected.id])}
             />
           ) : null}
 
@@ -177,6 +240,14 @@ export function CommandsTab() {
               <Table>
                 <THead>
                   <Tr>
+                    <Th className="w-10">
+                      <input
+                        type="checkbox"
+                        checked={list.length > 0 && list.every((row) => picked.includes(row.id))}
+                        onChange={toggleVisible}
+                        aria-label="Select all commands"
+                      />
+                    </Th>
                     <Th>When</Th>
                     <Th>Kind</Th>
                     <Th>Where</Th>
@@ -192,6 +263,15 @@ export function CommandsTab() {
                       className={cn("cursor-pointer", openId === row.id && "bg-recessed")}
                       onClick={() => setOpenId((current) => (current === row.id ? null : row.id))}
                     >
+                      <Td>
+                        <input
+                          type="checkbox"
+                          checked={picked.includes(row.id)}
+                          onClick={(event) => event.stopPropagation()}
+                          onChange={() => togglePicked(row.id)}
+                          aria-label="Select command"
+                        />
+                      </Td>
                       <Td className="whitespace-nowrap text-xs text-zinc-500">{formatDateTime(row.observed_at)}</Td>
                       <Td>
                         <Badge tone={kindTone(row.kind)}>{row.kind}</Badge>
@@ -236,12 +316,16 @@ function CommandDetail({
   row,
   detail,
   loading,
+  removing,
   onClose,
+  onRemove,
 }: {
   row: ThreatCommandRow;
   detail: ThreatCommandDetail | null;
   loading: boolean;
+  removing: boolean;
   onClose: () => void;
+  onRemove: () => void;
 }) {
   const { formatDateTime } = useFormatDateTime();
   const command = detail?.command || row.command;
@@ -259,9 +343,14 @@ function CommandDetail({
             </Link>
           ) : null}
         </div>
-        <Button type="button" variant="ghost" size="sm" className="h-7 px-2" onClick={onClose} title="Close">
-          <X className="h-3.5 w-3.5" />
-        </Button>
+        <div className="flex shrink-0 gap-1">
+          <Button type="button" variant="danger" size="sm" className="h-7" disabled={removing} onClick={onRemove}>
+            Remove
+          </Button>
+          <Button type="button" variant="ghost" size="sm" className="h-7 px-2" onClick={onClose} title="Close">
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        </div>
       </div>
       <dl className="grid gap-2 text-xs sm:grid-cols-2 lg:grid-cols-4">
         <Fact label="Source" value={row.src_ip ?? "—"} mono />

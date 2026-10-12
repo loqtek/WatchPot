@@ -11,7 +11,13 @@ from uuid import UUID
 from sqlalchemy import delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.enrichment.command_extract import extract_commands, is_control_plane_container
+from app.enrichment.command_extract import (
+    command_identity,
+    duplicate_group_indexes,
+    extract_commands,
+    is_control_plane_container,
+    normalize_command,
+)
 from app.models.event import Event
 from app.models.threat_command import ThreatCommand
 from app.time_utils import utc_now
@@ -56,6 +62,12 @@ def _noise_delete_filter():
     return or_(*clauses)
 
 
+def stored_fingerprint(pot_id: UUID | str, container: str | None, kind: str, command: str, src_ip: str | None) -> str:
+    kind_key, command_key, ip_key = command_identity(kind, command, src_ip)
+    inner = hashlib.sha256(f"{kind_key}\n{command_key}\n{ip_key}".encode()).hexdigest()
+    return hashlib.sha256(f"{pot_id}|{container or ''}|{inner}".encode()).hexdigest()
+
+
 async def purge_noise_commands(session: AsyncSession) -> int:
     """Drop platform traffic and telemetry that should never have been stored."""
     result = await session.execute(delete(ThreatCommand).where(_noise_delete_filter()))
@@ -91,10 +103,86 @@ async def _expand_clipped(
     return rows[0]
 
 
+async def delete_commands(session: AsyncSession, command_ids: list[UUID]) -> int:
+    if not command_ids:
+        return 0
+    result = await session.execute(delete(ThreatCommand).where(ThreatCommand.id.in_(command_ids)))
+    return int(result.rowcount or 0)
+
+
+async def dedupe_commands(session: AsyncSession) -> int:
+    """Collapse repeat sightings of the same command into one row and sum their counts."""
+    rows = list((await session.execute(select(ThreatCommand))).scalars().all())
+    if not rows:
+        return 0
+    payload = [
+        {
+            "pot_id": str(row.pot_id),
+            "container": row.container or "",
+            "kind": row.kind,
+            "command": row.command,
+            "src_ip": row.src_ip or "",
+        }
+        for row in rows
+    ]
+    removed = 0
+    dirty = False
+    for indexes in duplicate_group_indexes(payload):
+        group = [rows[index] for index in indexes]
+        longest = max(group, key=lambda row: len(normalize_command(row.kind, row.command)))
+        command = normalize_command(longest.kind, longest.command)
+        keeper = max(
+            group,
+            key=lambda row: (
+                len(row.command or ""),
+                len(row.context or ""),
+                row.last_seen_at,
+            ),
+        )
+        fingerprint = stored_fingerprint(keeper.pot_id, keeper.container, keeper.kind, command, keeper.src_ip)
+        losers = [row for row in group if row.id != keeper.id]
+        hits = sum(int(row.hit_count or 0) for row in group)
+        first_seen = min(row.first_seen_at for row in group)
+        last_seen = max(row.last_seen_at for row in group)
+        observed = min(row.observed_at for row in group)
+        context = max((row.context or "" for row in group), key=len)
+        latest = max(group, key=lambda row: row.last_seen_at)
+        unchanged = (
+            not losers
+            and keeper.fingerprint == fingerprint
+            and keeper.command == command
+            and int(keeper.hit_count or 0) == hits
+        )
+        if unchanged:
+            continue
+        dirty = True
+        if losers:
+            await session.execute(delete(ThreatCommand).where(ThreatCommand.id.in_([row.id for row in losers])))
+            removed += len(losers)
+        keeper.command = command
+        keeper.fingerprint = fingerprint
+        keeper.hit_count = hits
+        keeper.first_seen_at = first_seen
+        keeper.last_seen_at = last_seen
+        keeper.observed_at = observed
+        if context:
+            keeper.context = context
+        if latest.username:
+            keeper.username = latest.username
+        if latest.session_id:
+            keeper.session_id = latest.session_id
+        if longest.event_id:
+            keeper.event_id = longest.event_id
+    if dirty:
+        await session.flush()
+    return removed
+
+
 async def record_commands_for_events(session: AsyncSession, event_ids: list[UUID]) -> int:
     if not event_ids:
         return 0
     await purge_noise_commands(session)
+    await dedupe_commands(session)
     result = await session.execute(select(Event).where(Event.id.in_(event_ids)))
     events = list(result.scalars().all())
     stored = 0
@@ -109,9 +197,8 @@ async def record_commands_for_events(session: AsyncSession, event_ids: list[UUID
         if is_control_plane_container(container):
             continue
         for item in extract_commands(ev.raw_log):
-            fingerprint = hashlib.sha256(
-                f"{ev.pot_id}|{container or ''}|{item.fingerprint}".encode()
-            ).hexdigest()
+            command = normalize_command(item.kind, item.command)
+            fingerprint = stored_fingerprint(ev.pot_id, container, item.kind, command, item.src_ip)
             observed = item.observed_at or ev.received_at or now
             staged = pending.get(fingerprint)
             if staged is not None:
@@ -128,11 +215,11 @@ async def record_commands_for_events(session: AsyncSession, event_ids: list[UUID
                     container=container,
                     kind=item.kind,
                     src_ip=item.src_ip,
-                    command=item.command,
+                    command=command,
                 )
                 if clipped is not None:
                     clipped.fingerprint = fingerprint
-                    clipped.command = item.command
+                    clipped.command = command
                     clipped.event_id = ev.id
                     if item.excerpt:
                         clipped.context = item.excerpt
@@ -146,7 +233,7 @@ async def record_commands_for_events(session: AsyncSession, event_ids: list[UUID
                     event_id=ev.id,
                     container=container,
                     kind=item.kind,
-                    command=item.command,
+                    command=command,
                     src_ip=item.src_ip,
                     session_id=item.session_id,
                     username=item.username,

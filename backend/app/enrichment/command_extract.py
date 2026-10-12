@@ -143,6 +143,67 @@ def excerpt_around(raw_log: str, command: str, radius: int = _EXCERPT_RADIUS) ->
     return None
 
 
+def normalize_command(kind: str, command: str) -> str:
+    """One spelling for the same command, so repeats group together."""
+    text = " ".join(command.split()).strip()
+    if kind != "http":
+        return text
+    parts = text.split(None, 1)
+    if len(parts) != 2 or parts[0].upper() not in _HTTP_METHODS:
+        return text
+    path, _, query = parts[1].partition("?")
+    if len(path) > 1:
+        path = path.rstrip("/")
+    suffix = f"?{query}" if query else ""
+    return f"{parts[0].upper()} {path}{suffix}"
+
+
+def command_identity(kind: str, command: str, src_ip: str | None) -> tuple[str, str, str]:
+    """Identity ignores time and session. The same command from the same IP is one row."""
+    return (kind, normalize_command(kind, command), (src_ip or "").strip())
+
+
+def duplicate_group_indexes(rows: list[dict]) -> list[list[int]]:
+    """Group row indexes that are the same command. A 1024-character prefix joins the full text."""
+    exact: dict[tuple, list[int]] = {}
+    for index, row in enumerate(rows):
+        kind = str(row.get("kind") or "")
+        command = normalize_command(kind, str(row.get("command") or ""))
+        key = (
+            str(row.get("pot_id") or ""),
+            str(row.get("container") or "").strip(),
+            kind,
+            command,
+            str(row.get("src_ip") or "").strip(),
+        )
+        exact.setdefault(key, []).append(index)
+
+    scopes: dict[tuple, list[tuple[str, tuple]]] = {}
+    for key in exact:
+        scope = (key[0], key[1], key[2], key[4])
+        scopes.setdefault(scope, []).append((key[3], key))
+
+    redirect: dict[tuple, tuple] = {}
+    for items in scopes.values():
+        items.sort(key=lambda item: len(item[0]), reverse=True)
+        longer: list[tuple[str, tuple]] = []
+        for command, key in items:
+            target = key
+            if len(command) == 1024:
+                for full, full_key in longer:
+                    if full.startswith(command):
+                        target = full_key
+                        break
+            else:
+                longer.append((command, key))
+            redirect[key] = target
+
+    merged: dict[tuple, list[int]] = {}
+    for key, indexes in exact.items():
+        merged.setdefault(redirect.get(key, key), []).extend(indexes)
+    return list(merged.values())
+
+
 def _fingerprint(*parts: str) -> str:
     raw = "\n".join(parts)
     return hashlib.sha256(raw.encode("utf-8", errors="replace")).hexdigest()
@@ -234,7 +295,7 @@ def _from_json(payload: dict, *, observed_at: datetime | None, line: str) -> Ext
     method = str(payload.get("method") or payload.get("http_method") or "").upper()
     path = str(payload.get("path") or payload.get("uri") or payload.get("url") or "")
     if method in _HTTP_METHODS and path.startswith("/"):
-        command = _clip(f"{method} {path}")
+        command = normalize_command("http", _clip(f"{method} {path}"))
         return ExtractedCommand(
             kind="http",
             command=command,
@@ -269,7 +330,7 @@ def _from_text(message: str, *, observed_at: datetime | None) -> ExtractedComman
     if not http:
         kv = _KV_HTTP.search(message)
         if kv:
-            command = _clip(f"{kv.group(1).upper()} {kv.group(2)}")
+            command = normalize_command("http", _clip(f"{kv.group(1).upper()} {kv.group(2)}"))
             return ExtractedCommand(
                 kind="http",
                 command=command,
@@ -284,7 +345,7 @@ def _from_text(message: str, *, observed_at: datetime | None) -> ExtractedComman
         if loose:
             http = _HTTP.match(loose.group(1).strip())
     if http:
-        command = _clip(f"{http.group(1).upper()} {http.group(2)}")
+        command = normalize_command("http", _clip(f"{http.group(1).upper()} {http.group(2)}"))
         return ExtractedCommand(
             kind="http",
             command=command,

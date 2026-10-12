@@ -1,4 +1,10 @@
-from app.enrichment.command_extract import extract_commands, is_control_plane_container
+from app.enrichment.command_extract import (
+    command_identity,
+    duplicate_group_indexes,
+    extract_commands,
+    is_control_plane_container,
+    normalize_command,
+)
 
 
 def test_cowrie_json_command_redacts_password_and_keeps_input():
@@ -83,6 +89,41 @@ def test_control_plane_container_names():
     assert not is_control_plane_container("hellpot")
     assert not is_control_plane_container("cowrie")
     assert not is_control_plane_container("web-honeypot")
+
+
+def test_repeat_observations_share_identity_and_sources_stay_separate():
+    first = extract_commands("2026-04-01T12:00:02Z [HoneyPotSSHTransport,5,198.51.100.8] CMD: uname -a")
+    later = extract_commands("2026-04-01T12:09:02Z [HoneyPotSSHTransport,9,198.51.100.8] CMD: uname -a")
+    other = extract_commands("2026-04-01T12:09:02Z [HoneyPotSSHTransport,9,203.0.113.10] CMD: uname -a")
+    assert command_identity(first[0].kind, first[0].command, first[0].src_ip) == command_identity(
+        later[0].kind, later[0].command, later[0].src_ip
+    )
+    assert command_identity(first[0].kind, first[0].command, first[0].src_ip) != command_identity(
+        other[0].kind, other[0].command, other[0].src_ip
+    )
+
+
+def test_http_paths_drop_a_trailing_slash():
+    assert normalize_command("http", "GET /admin/") == "GET /admin"
+    assert normalize_command("http", "GET /") == "GET /"
+    assert normalize_command("http", "GET /admin/?x=1") == "GET /admin?x=1"
+
+
+def test_duplicate_groups_merge_repeats_without_merging_different_commands():
+    full = "echo " + ("A" * 1100)
+    rows = [
+        {"pot_id": "p", "container": "cowrie", "kind": "shell", "command": "uname -a", "src_ip": "203.0.113.10"},
+        {"pot_id": "p", "container": "cowrie", "kind": "shell", "command": "uname -a", "src_ip": "203.0.113.10"},
+        {"pot_id": "p", "container": "cowrie", "kind": "shell", "command": "uname -a", "src_ip": "198.51.100.8"},
+        {"pot_id": "p", "container": "cowrie", "kind": "shell", "command": full[:1024], "src_ip": "203.0.113.9"},
+        {"pot_id": "p", "container": "cowrie", "kind": "shell", "command": full, "src_ip": "203.0.113.9"},
+        {"pot_id": "p", "container": "hellpot", "kind": "http", "command": "GET /admin/", "src_ip": ""},
+        {"pot_id": "p", "container": "hellpot", "kind": "http", "command": "GET /admin", "src_ip": ""},
+        {"pot_id": "p", "container": "cowrie", "kind": "shell", "command": "ls", "src_ip": "203.0.113.10"},
+        {"pot_id": "p", "container": "cowrie", "kind": "shell", "command": "ls -la", "src_ip": "203.0.113.10"},
+    ]
+    sizes = sorted(len(group) for group in duplicate_group_indexes(rows))
+    assert sizes == [1, 1, 1, 2, 2, 2]
 
 
 def test_reingested_tail_has_stable_fingerprint():

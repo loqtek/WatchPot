@@ -276,6 +276,10 @@ class ThreatCommandDetailOut(ThreatCommandOut):
     context: str | None = None
 
 
+class CommandIdsRequest(BaseModel):
+    ids: list[UUID] = Field(min_length=1, max_length=500)
+
+
 class ThreatCommandStatsOut(BaseModel):
     total: int
     shell: int

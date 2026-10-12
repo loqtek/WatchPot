@@ -14,7 +14,13 @@ from app.deps import get_current_user
 from app.enrichment.bootstrap import ensure_builtin_rules, ensure_default_schedules
 from app.enrichment.config import load_config, save_config
 from app.enrichment.cve import cve_stats, ensure_catalog_cves, seed_cve_cache, sync_cve_cache
-from app.enrichment.command_capture import command_stats, purge_noise_commands, scan_events_for_commands
+from app.enrichment.command_capture import (
+    command_stats,
+    dedupe_commands,
+    delete_commands,
+    purge_noise_commands,
+    scan_events_for_commands,
+)
 from app.enrichment.command_extract import excerpt_around
 from app.enrichment.ip_intel import ip_hit_activity, ip_intel_stats, lookup_ip_geo, scan_events_for_ips
 from app.enrichment.engine import test_sample
@@ -45,6 +51,7 @@ from app.schemas.enrichment import (
     EnrichmentStatsOut,
     IpActivityOut,
     IpIntelStatsOut,
+    CommandIdsRequest,
     ThreatCommandDetailOut,
     ThreatCommandOut,
     ThreatCommandStatsOut,
@@ -801,6 +808,62 @@ async def get_command(
     return ThreatCommandDetailOut.model_validate(row).model_copy(
         update={"pot_name": pot_name, "context": context}
     )
+
+
+@router.delete("/commands/{command_id}")
+async def delete_command(
+    command_id: UUID,
+    request: Request,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    removed = await delete_commands(db, [command_id])
+    if not removed:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Command not found")
+    await write_audit(
+        db,
+        action="enrichment.command.delete",
+        actor_user_id=user.id,
+        detail={"ids": [str(command_id)], "removed": removed},
+        ip_address=request.client.host if request.client else None,
+    )
+    return {"ok": True, "removed": removed}
+
+
+@router.post("/commands/remove")
+async def remove_commands(
+    request: Request,
+    body: CommandIdsRequest,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    removed = await delete_commands(db, body.ids)
+    await write_audit(
+        db,
+        action="enrichment.command.delete",
+        actor_user_id=user.id,
+        detail={"ids": [str(item) for item in body.ids], "removed": removed},
+        ip_address=request.client.host if request.client else None,
+    )
+    return {"ok": True, "removed": removed}
+
+
+@router.post("/commands/dedupe")
+async def dedupe_command_rows(
+    request: Request,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    removed = await dedupe_commands(db)
+    total = int((await db.execute(select(func.count()).select_from(ThreatCommand))).scalar_one())
+    await write_audit(
+        db,
+        action="enrichment.command.dedupe",
+        actor_user_id=user.id,
+        detail={"removed": removed, "remaining": total},
+        ip_address=request.client.host if request.client else None,
+    )
+    return {"ok": True, "removed": removed, "remaining": total}
 
 
 @router.post("/commands/scan")
