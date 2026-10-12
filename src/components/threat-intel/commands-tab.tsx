@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Terminal, X } from "lucide-react";
 import { apiFetch } from "@/lib/api";
@@ -58,7 +58,6 @@ export function CommandsTab() {
   }, [applied]);
   const { data: rows, loading, error, refetch } = useAsyncData(fetchRows);
   const list = rows ?? [];
-  const selected = list.find((row) => row.id === openId) ?? null;
   const detail = detailState?.id === openId && detailState.nonce === detailNonce ? detailState.row : null;
   const detailLoading = Boolean(openId) && (detailState?.id !== openId || detailState.nonce !== detailNonce);
 
@@ -214,17 +213,6 @@ export function CommandsTab() {
             </Button>
           </form>
 
-          {selected ? (
-            <CommandDetail
-              row={selected}
-              detail={detail}
-              loading={detailLoading}
-              removing={busy === "delete"}
-              onClose={() => setOpenId(null)}
-              onRemove={() => void removeIds([selected.id])}
-            />
-          ) : null}
-
           {loading && !rows ? (
             <Spinner />
           ) : error && list.length === 0 ? (
@@ -258,8 +246,8 @@ export function CommandsTab() {
                 </THead>
                 <TBody>
                   {list.map((row) => (
+                    <Fragment key={row.id}>
                     <Tr
-                      key={row.id}
                       className={cn("cursor-pointer", openId === row.id && "bg-recessed")}
                       onClick={() => setOpenId((current) => (current === row.id ? null : row.id))}
                     >
@@ -301,6 +289,21 @@ export function CommandsTab() {
                       </Td>
                       <Td className="tabular-nums text-zinc-400">{row.hit_count}</Td>
                     </Tr>
+                    {openId === row.id ? (
+                      <Tr className="bg-recessed hover:bg-recessed">
+                        <Td colSpan={7} className="bg-recessed px-3 py-3">
+                          <CommandDetail
+                            row={row}
+                            detail={detail}
+                            loading={detailLoading}
+                            removing={busy === "delete"}
+                            onClose={() => setOpenId(null)}
+                            onRemove={() => void removeIds([row.id])}
+                          />
+                        </Td>
+                      </Tr>
+                    ) : null}
+                    </Fragment>
                   ))}
                 </TBody>
               </Table>
@@ -332,7 +335,7 @@ function CommandDetail({
   const context = detail?.context ?? "";
 
   return (
-    <div className="space-y-3 rounded-xl border border-line bg-recessed p-3">
+    <div className="space-y-3 border-l-2 border-line pl-3">
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <Badge tone={kindTone(row.kind)}>{row.kind}</Badge>

@@ -1,4 +1,4 @@
-import { type HTMLAttributes, type ReactNode } from "react";
+import { type HTMLAttributes, type ReactNode, type TdHTMLAttributes, type ThHTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
 
 export function TableWrap({ className, children, ...props }: HTMLAttributes<HTMLDivElement>) {
@@ -29,7 +29,7 @@ export function Tr({ className, ...props }: HTMLAttributes<HTMLTableRowElement>)
   return <tr className={cn("transition-colors hover:bg-recessed", className)} {...props} />;
 }
 
-export function Th({ className, children, ...props }: HTMLAttributes<HTMLTableCellElement>) {
+export function Th({ className, children, ...props }: ThHTMLAttributes<HTMLTableCellElement>) {
   return (
     <th className={cn("px-4 py-3 text-left align-middle text-xs font-medium text-muted", className)} {...props}>
       {children}
@@ -42,7 +42,7 @@ export function Td({
   children,
   mono,
   ...props
-}: HTMLAttributes<HTMLTableCellElement> & { mono?: boolean }) {
+}: TdHTMLAttributes<HTMLTableCellElement> & { mono?: boolean }) {
   return (
     <td className={cn("px-4 py-3.5 text-body", mono && "font-mono text-xs text-muted", className)} {...props}>
       {children}
