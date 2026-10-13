@@ -31,6 +31,7 @@ from app.routers import (
     pot_ops,
     pots,
     public_agent,
+    reports,
     snapshots,
     stacks,
     users,
@@ -110,6 +111,7 @@ else:
     app.include_router(backups.router, prefix="/api", dependencies=admin_only)
     app.include_router(stacks.router, prefix="/api", dependencies=admin_only)
     app.include_router(events.router, prefix="/api", dependencies=admin_only)
+    app.include_router(reports.router, prefix="/api", dependencies=admin_only)
     app.include_router(audit_logs.router, prefix="/api", dependencies=admin_only)
     app.include_router(public_agent.router, prefix="/api")
     app.include_router(agent_api.router, prefix="/api")

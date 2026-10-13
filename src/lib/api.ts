@@ -108,6 +108,29 @@ export async function apiFetch<T>(
   return res.json() as Promise<T>;
 }
 
+export async function apiPostDownload(
+  path: string,
+  json: unknown,
+): Promise<{ blob: Blob; filename: string }> {
+  const url = `${getApiBase().replace(/\/$/, "")}${path.startsWith("/") ? path : `/${path}`}`;
+  const headers = new Headers();
+  headers.set("Content-Type", "application/json");
+  headers.set("X-CSRF-Token", await ensureCsrfToken());
+  const res = await fetch(url, {
+    method: "POST",
+    credentials: "include",
+    headers,
+    body: JSON.stringify(json),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(parseApiErrorBody(text, res.statusText));
+  }
+  const disposition = res.headers.get("Content-Disposition") ?? "";
+  const match = /filename="([^"]+)"/.exec(disposition);
+  return { blob: await res.blob(), filename: match?.[1] ?? "watchpot-report" };
+}
+
 export async function apiDownload(path: string): Promise<Blob> {
   const url = `${getApiBase().replace(/\/$/, "")}${path.startsWith("/") ? path : `/${path}`}`;
   const res = await fetch(url, { credentials: "include" });

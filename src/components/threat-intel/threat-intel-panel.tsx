@@ -91,10 +91,15 @@ export function ThreatIntelPanel() {
         title="Threat intelligence"
         description="Passive fingerprinting and CVE correlation on ingested honeypot events. Event-driven enrichment runs on ingest and on schedule — alert-only, no blocking."
         actions={
-          <Button type="button" variant="outline" size="sm" onClick={() => refetchStats()}>
-            <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
-            Refresh
-          </Button>
+          <>
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/reports">Export writeup</Link>
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => refetchStats()}>
+              <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+              Refresh
+            </Button>
+          </>
         }
       />
 

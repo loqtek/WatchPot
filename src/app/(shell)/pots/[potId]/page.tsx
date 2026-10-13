@@ -233,6 +233,9 @@ export default function PotDetailPage() {
                 <Button type="button" variant="outline" size="sm" asChild>
                   <Link href={`/events?pot_id=${potId}`}>Events & logs</Link>
                 </Button>
+                <Button type="button" variant="outline" size="sm" asChild>
+                  <Link href={`/reports?pot_id=${potId}`}>Export writeup</Link>
+                </Button>
                 <Button type="button" variant="secondary" size="sm" disabled={!!busy} onClick={() => void rotateAgentKey()}>
                   <KeyRound className="mr-1 h-3.5 w-3.5" />
                   Rotate key

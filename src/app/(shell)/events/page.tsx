@@ -87,6 +87,22 @@ export default function EventsPage() {
       <PageHeader
         title="Events & audit"
         description="Workload and honeypot container logs flow in as runtime events. Select a pot to view live docker logs for deployed containers and browse the ingested log stream. For multi-pot live tails, use the log wall."
+        actions={
+          <Button variant="outline" size="sm" asChild>
+            <Link
+              href={
+                potFilter.trim() || enrichedOnly
+                  ? `/reports?${new URLSearchParams({
+                      ...(potFilter.trim() ? { pot_id: potFilter.trim() } : {}),
+                      ...(enrichedOnly ? { focus: "threats" } : {}),
+                    }).toString()}`
+                  : "/reports"
+              }
+            >
+              Export writeup
+            </Link>
+          </Button>
+        }
       />
 
       <Card>

@@ -372,6 +372,11 @@ export function IpIntelTab() {
                     </Badge>
                   ) : null}
                 </CardDescription>
+                <div className="pt-3">
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href={`/reports?src_ip=${encodeURIComponent(selected.ip_address)}`}>Export writeup</Link>
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="space-y-4 break-words text-sm">
                 <div className="rounded-lg border border-zinc-800 bg-zinc-950/80 p-3 space-y-2">
