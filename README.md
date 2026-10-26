@@ -19,7 +19,7 @@
   <img src="https://img.shields.io/badge/stack-PostgreSQL%20%7C%20FastAPI%20%7C%20Next.js-10b981" alt="Stack" />
 </p>
 <p align="center">
-  <a href="https://www.buymeacoffee.com/USERNAME" target="_blank">
+  <a href="https://www.buymeacoffee.com/loqtek" target="_blank">
     <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="50" width="181">
   </a>
 </p>
